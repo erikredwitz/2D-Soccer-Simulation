@@ -1,0 +1,4 @@
+package model;
+
+public record StrategyOutput(TwoDimVector bodyAccelerationDirection, double bodyAccelerationStrength, boolean letBallPass, TwoDimVector racketAccelerationDirection, double racketAccelerationStrength) {
+}
