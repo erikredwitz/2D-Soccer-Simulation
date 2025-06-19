@@ -19,21 +19,20 @@ public class Player extends MovingFrameElement {
 
 
     private boolean teamRed;
-    private TwoDimVector bodyAcceleration = new TwoDimVector(0,0); //wird bestimmt von Strategie
+    private TwoDimVector bodyAcceleration = new TwoDimVector(0, 0); //wird bestimmt von Strategie
     private boolean letBallPass = true;
-    private TwoDimVector shotVelocity = new TwoDimVector(0,0);
+    private TwoDimVector shotVelocity = new TwoDimVector(0, 0);
     private Strategy strategy;
     private int minimalDurationBeforeNextShot = 0;
-    private int timeOfLastShot = 0;
-    private int playerId;
+    private int playerId; //auf Figur schreiben in der Anzeige
     static int nextPlayerId = 1;
 
-    public Player(boolean teamRed, Strategy strategy, TwoDimVector position) {
+    public Player(boolean teamRed, Strategy strategy, TwoDimVector position, int playerId) {
         super(position, new TwoDimVector(0, 0));
         this.teamRed = teamRed;
         this.strategy = strategy;
-        this.playerId = nextPlayerId;
-        nextPlayerId++;
+        this.playerId = playerId;
+
     }
 
     public TwoDimVector getShotVelocity() {
@@ -78,7 +77,8 @@ public class Player extends MovingFrameElement {
             System.out.println("perspective == null");
             return;
         }
-        var strategyOutput = strategy.decide(situation, super.id);
+        Player copyOfThis = createCopy();
+        var strategyOutput = strategy.decide(situation, copyOfThis);
         bodyAcceleration = Utility.normAndScale(strategyOutput.bodyAccelerationStrength(),
             strategyOutput.bodyAccelerationDirection(), BODY_ACC_MAX);
         this.letBallPass = strategyOutput.letBallPass();
@@ -86,6 +86,14 @@ public class Player extends MovingFrameElement {
             shotVelocity = Utility.normAndScale(strategyOutput.shotStrength(), strategyOutput.shotDirection(),
                 MAX_SHOT_VELOCITY);
         }
+    }
+
+    public Player createCopy() {
+        Player copyOfThis = new Player(isTeamRed(), null, position.scaledWith(1), playerId);
+        copyOfThis.setId(id);
+        copyOfThis.setVelocity(velocity.scaledWith(1));
+        copyOfThis.setMinimalDurationBeforeNextShot(minimalDurationBeforeNextShot);
+        return copyOfThis;
     }
 
     public void move() {
@@ -102,6 +110,9 @@ public class Player extends MovingFrameElement {
         }
         velocity.add(bodyAcceleration);
         velocity = velocity.scaledWith(1 - FRICTION);
+        if (minimalDurationBeforeNextShot > 0) {
+            minimalDurationBeforeNextShot--;
+        }
     }
 
     public int getMinimalDurationBeforeNextShot() {
@@ -112,13 +123,6 @@ public class Player extends MovingFrameElement {
         this.minimalDurationBeforeNextShot = minimalDurationBeforeNextShot;
     }
 
-    public int getTimeOfLastShot() {
-        return timeOfLastShot;
-    }
-
-    public void setTimeOfLastShot(int timeOfLastShot) {
-        this.timeOfLastShot = timeOfLastShot;
-    }
 
     public void setBodyAcceleration(TwoDimVector bodyAcceleration) {
         this.bodyAcceleration = bodyAcceleration;
@@ -130,5 +134,9 @@ public class Player extends MovingFrameElement {
         } else {
             return strategy.getKickOffPosition().scaledWith((isTeamRed() ? 1.0 : -1.0) * Game.RED_SIDE);
         }
+    }
+
+    public int getPlayerId() {
+        return playerId;
     }
 }

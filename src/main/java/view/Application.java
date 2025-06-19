@@ -27,10 +27,10 @@ public class Application {
         for (int i = 0; i < playersPerTeam; i++) {
             playerList.add(
                 new Player(false, new ScriptedStrategy(),
-                    new TwoDimVector(-Game.RED_SIDE * Game.PITCH_LENGTH/8.0, -128 + (i + 1) * 256.0 / (1 + playersPerTeam))));
+                    new TwoDimVector(-Game.RED_SIDE * Game.PITCH_LENGTH/8.0, -128 + (i + 1) * 256.0 / (1 + playersPerTeam)), i+1));
             playerList.add(
                 new Player(true, new ScriptedStrategy(),
-                    new TwoDimVector(Game.RED_SIDE * Game.PITCH_LENGTH/8.0, -128 + (i + 1) * 256.0 / (1 + playersPerTeam))));
+                    new TwoDimVector(Game.RED_SIDE * Game.PITCH_LENGTH/8.0, -128 + (i + 1) * 256.0 / (1 + playersPerTeam)), i+1));
         }
         return new Game(playerList, new Ball(new TwoDimVector(Game.LEFT_GOAL_CENTER.getX()+2, 0)), frameCreator, false);
     }

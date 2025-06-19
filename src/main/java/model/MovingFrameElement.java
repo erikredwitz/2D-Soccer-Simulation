@@ -37,10 +37,9 @@ public abstract class MovingFrameElement implements Comparable<MovingFrameElemen
         return (int) Math.round(velocity.getNorm() - o.velocity.getNorm());
     }
 
-    public SituationElement findMeInSituation(Situation situation) {
-        var equalSituationElement = new SituationElement(position.scaledWith(1), velocity.scaledWith(1), isBall(), isTeamRed(), id);
-        for(var e:situation.getSituationElements()){
-            if(e.id() == equalSituationElement.id()){
+    public Player findMeInSituation(Situation situation) {
+        for(var e:situation.getPlayers()){
+            if(e.getId() == id){
                 return e;
             }
         }
@@ -56,4 +55,13 @@ public abstract class MovingFrameElement implements Comparable<MovingFrameElemen
         }
         this.position = position;
     }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
 }

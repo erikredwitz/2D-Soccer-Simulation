@@ -80,15 +80,13 @@ public class Game {
         for (var player : players) {
             //die Liste die der Spieler hier kriegt enthält auch den Spieler selbst und über die id kann er wissen wer er ist
             player.decide(Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
-            if (!player.doesLetBallPass() && canPlayerShoot(player)) {
+            if (!player.doesLetBallPass() && canPlayerShoot(player, ball)) {
                 playersWhoTouchTheBall.add(player);
             }
         }
         if (!playersWhoTouchTheBall.isEmpty()) {
             for (var player : playersWhoTouchTheBall) {
-                System.out.println(player.getShotVelocity());
                 shotVelocitySum.add(player.getShotVelocity());
-                player.setTimeOfLastShot(pointInTime);
                 player.setMinimalDurationBeforeNextShot(MINIMAL_DURATION_BEFORE_NEXT_SHOT);
             }
             ball.setVelocity(shotVelocitySum.getNormedVector()
@@ -200,8 +198,8 @@ public class Game {
     }
 
 
-    private boolean canPlayerShoot(Player player) {
-        boolean timing = player.getMinimalDurationBeforeNextShot() + player.getTimeOfLastShot() <= pointInTime;
+    public static boolean canPlayerShoot(Player player, Ball ball) {
+        boolean timing = player.getMinimalDurationBeforeNextShot() <= 0;
         boolean distance = player.getPosition().getDistanceTo(ball.getPosition()) <= MAX_DISTANCE_TO_BALL_FOR_SHOT;
         return timing && distance;
     }

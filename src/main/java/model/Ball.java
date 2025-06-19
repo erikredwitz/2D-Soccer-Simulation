@@ -86,4 +86,13 @@ public class Ball extends MovingFrameElement {
     public void setInGoal(boolean inGoal) {
         isInGoal = inGoal;
     }
+
+    public Ball createCopy(){
+      Ball copy = new Ball(position.scaledWith(1), velocity.scaledWith(1));
+      copy.setId(id);
+      copy.setInGoal(this.isInGoal);
+      copy.isInRedGoal = this.isInRedGoal;
+      return copy;
+    }
+
 }

@@ -7,7 +7,7 @@ import static model.Game.getGoalYStart;
 
 public interface Strategy {
 
-    StrategyOutput decide(Situation situation, int perspectiveId);
+    StrategyOutput decide(Situation situation, Player perspectivePlayer);
 
     TwoDimVector getKickOffPosition();
 }
