@@ -86,6 +86,7 @@ public class Game {
         }
         if (!playersWhoTouchTheBall.isEmpty()) {
             for (var player : playersWhoTouchTheBall) {
+                System.out.println(player.getShotVelocity());
                 shotVelocitySum.add(player.getShotVelocity());
                 player.setTimeOfLastShot(pointInTime);
                 player.setMinimalDurationBeforeNextShot(MINIMAL_DURATION_BEFORE_NEXT_SHOT);
