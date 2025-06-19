@@ -9,6 +9,10 @@ public class TwoDimVector {
         this.y = y;
     }
 
+    public TwoDimVector(TwoDimVector original) {
+        this(original.getX(), original.getY());
+    }
+
     public TwoDimVector scaledWith(double factor) {
         return new TwoDimVector(x * factor, y * factor);
     }
@@ -27,7 +31,7 @@ public class TwoDimVector {
     }
 
     public double getDistanceTo(TwoDimVector otherVector) {
-        return Math.sqrt(Math.pow(this.x + otherVector.x, 2) + Math.pow(this.y - otherVector.y, 2));
+        return Math.sqrt(Math.pow(this.x - otherVector.x, 2) + Math.pow(this.y - otherVector.y, 2));
     }
 
     public double getNorm() {
@@ -36,15 +40,56 @@ public class TwoDimVector {
 
     public TwoDimVector getNormedVector() {
         var norm = getNorm();
+        if (norm == 0) {
+            return new TwoDimVector(0, 0);
+        }
         return new TwoDimVector(x / norm, y / norm);
     }
 
-    public TwoDimVector subtract(TwoDimVector subtrahend) {
+    /**
+     * Creates a new vector which has the coordinates of the vector - the coordinates of the subtrahend.
+     *
+     * @param subtrahend
+     * @return new TwoDimVector
+     */
+    public TwoDimVector getDifference(TwoDimVector subtrahend) {
         return new TwoDimVector(x - subtrahend.x, y - subtrahend.y);
     }
 
     public void setTo(double x, double y) {
         this.x = x;
         this.y = y;
+    }
+
+    public double getRadian() {
+        double x = getNormedVector().getX();
+        double y = getNormedVector().getY();
+
+        double alpha = 0;
+        if (x >= 0) {
+            alpha = Math.acos(x);
+            if (y < 0) {
+                alpha = 2 * Math.PI - alpha;
+            }
+        } else {
+            alpha = Math.acos(-x);
+            if (y >= 0) {
+                alpha = Math.PI - alpha;
+            } else if (y < 0) {
+                alpha = Math.PI + alpha;
+            }
+        }
+        return alpha;
+    }
+
+    public TwoDimVector rotated(double angle) {
+        double x = getNormedVector().getX();
+        double y = getNormedVector().getY();
+        return new TwoDimVector(Math.cos(angle) * x - Math.sin(angle) * y,
+            Math.sin(angle) * x + Math.cos(angle) * y).scaledWith(this.getNorm());
+    }
+
+    public TwoDimVector plus(TwoDimVector summand) {
+        return new TwoDimVector(this.getX() + summand.getX(), this.getY() + summand.getY());
     }
 }

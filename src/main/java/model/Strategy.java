@@ -1,8 +1,13 @@
 package model;
 
-import java.util.List;
+import static model.Game.PITCH_LENGTH;
+import static model.Game.PITCH_WIDTH;
+import static model.Game.getGoalYEnd;
+import static model.Game.getGoalYStart;
 
 public interface Strategy {
 
-    StrategyOutput decide(List<MovingFrameElement> elements, Player perspective);
+    StrategyOutput decide(Situation situation, SituationElement perspective);
+
+    TwoDimVector getKickOffPosition();
 }
