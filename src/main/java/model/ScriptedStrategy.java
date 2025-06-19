@@ -17,8 +17,8 @@ public class ScriptedStrategy implements Strategy {
     public static final int DRIBBLING_DIRECTION_SIMULATION_STEPS = 5;
 
     @Override
-    public StrategyOutput decide(Situation situation, SituationElement perspective) {
-
+    public StrategyOutput decide(Situation situation, int perspectiveId) {
+        var perspective = situation.getSituationElements().get(perspectiveId);
         SituationElement ball = null;
         var players = new ArrayList<>(situation.getSituationElements());
         for (var element : players) {
@@ -30,15 +30,11 @@ public class ScriptedStrategy implements Strategy {
 
 
         players.remove(ball);
-        if (ball == null) {
-            ball = new SituationElement(new TwoDimVector(0, 0), new TwoDimVector(0, 0), true, false);
-        }
 
 
         TwoDimVector bodyAccelerationDirection = null;
         double bodyAccelerationStrength = 1;
         SituationElement nextBallContactPlayer = determineNextBallContactPlayer(players, ball);
-
         TwoDimVector opponentGoalPos =
             Game.getGoalCenter(!perspective.isTeamRed());
         List<SituationElement> teamIncludingPerspective = new LinkedList<>();
@@ -91,7 +87,7 @@ public class ScriptedStrategy implements Strategy {
         while (isCovered(ball, target, opponents) ||
             (target != opponentGoalPos && target.getDistanceTo(perspective.position()) < MIN_PASS_DISTANCE)) {
             SituationElement bestPassOption =
-                getClosestToGoal(passOptions,opponentGoalPos);
+                getClosestElementToGoal(passOptions,opponentGoalPos);
             if (bestPassOption == perspective) {
                 //dribbeln
                 //in Richtung gegnerisches Tor im Idealfall
@@ -136,7 +132,7 @@ public class ScriptedStrategy implements Strategy {
             var direction = goalDirectionFromBall.rotated(offsetDirection * PI/(steps*2));
             var simulationVelocity = goalDirectionFromBall.getNormedVector().scaledWith(standardDribblingStrength);
             SituationElement simulationBall = new SituationElement(ball.position(), simulationVelocity, ball.isBall(),
-                ball.isTeamRed());
+                ball.isTeamRed(), ball.id());
             var nextBallContactPlayer = determineNextBallContactPlayer(players, ball);
             if(nextBallContactPlayer.isTeamRed() == perspective.isTeamRed()){
                 return new ShotDecision(direction, standardDribblingStrength);
@@ -146,7 +142,7 @@ public class ScriptedStrategy implements Strategy {
     }
 
     private SituationElement determineNextBallContactPlayer(List<SituationElement> elements, SituationElement ball) {
-        var first = elements.getFirst();
+        var first = elements.get(0);
         int minSteps = determineBodyAccelerationForFastestBallContact(first, ball).timeSteps();
         int minStepsIndex = 0;
         for (int i = 1; i < elements.size(); i++) {
@@ -184,7 +180,7 @@ public class ScriptedStrategy implements Strategy {
             }
             scenarioPlayer.setPosition(new TwoDimVector(perspective.position()));
             scenarioPlayer.setVelocity(new TwoDimVector(perspective.velocity()));
-            for (int j = 0; j <= i; j++) {
+            for (int j = 1; j <= i; j++) {
                 TwoDimVector accToBall =
                     determineBodyAccelerationDirectionForFastestWayToPosition(scenarioPlayer.position, scenarioPlayer.velocity,
                         scenarioBall.position);
@@ -196,7 +192,7 @@ public class ScriptedStrategy implements Strategy {
         return new AccelerationDecision(bodyAccelerationDirection, 1, timesteps, scenarioBall.position);
     }
 
-    private SituationElement getClosestToGoal(List<SituationElement> passOptions, TwoDimVector goal) {
+    private SituationElement getClosestElementToGoal(List<SituationElement> passOptions, TwoDimVector goal) {
         if (passOptions.isEmpty()) {
             return null;
         }

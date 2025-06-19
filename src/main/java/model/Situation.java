@@ -17,7 +17,7 @@ public class Situation {
     public static Situation generateSituationFrom(List<MovingFrameElement> elements, int redScore, int blueScore) {
         List<SituationElement> situationElementList = new ArrayList<>();
         for(var element : elements){
-            situationElementList.add(element.generateSituationElement());
+            situationElementList.add(new SituationElement(element.position.scaledWith(1), element.velocity.scaledWith(1), element.isBall(), element.isTeamRed(), element.id));
         }
         return new Situation(situationElementList, redScore, blueScore);
     }

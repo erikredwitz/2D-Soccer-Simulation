@@ -1,7 +1,5 @@
 package model;
 
-import java.util.List;
-
 import static model.Ball.BALL_RADIUS;
 import static model.FrameCreator.HEIGHT;
 
@@ -21,17 +19,21 @@ public class Player extends MovingFrameElement {
 
 
     private boolean teamRed;
-    private TwoDimVector bodyAcceleration; //wird bestimmt von Strategie
-    private boolean letBallPass;
-    private TwoDimVector shotVelocity;
+    private TwoDimVector bodyAcceleration = new TwoDimVector(0,0); //wird bestimmt von Strategie
+    private boolean letBallPass = true;
+    private TwoDimVector shotVelocity = new TwoDimVector(0,0);
     private Strategy strategy;
     private int minimalDurationBeforeNextShot = 0;
     private int timeOfLastShot = 0;
+    private int playerId;
+    static int nextPlayerId = 1;
 
     public Player(boolean teamRed, Strategy strategy, TwoDimVector position) {
         super(position, new TwoDimVector(0, 0));
         this.teamRed = teamRed;
         this.strategy = strategy;
+        this.playerId = nextPlayerId;
+        nextPlayerId++;
     }
 
     public TwoDimVector getShotVelocity() {
@@ -71,7 +73,12 @@ public class Player extends MovingFrameElement {
     }
 
     public void decide(Situation situation) {
-        var strategyOutput = strategy.decide(situation, this.generateSituationElement());
+        var perspective = super.findMeInSituation(situation);
+        if (perspective == null) {
+            System.out.println("perspective == null");
+            return;
+        }
+        var strategyOutput = strategy.decide(situation, super.id);
         bodyAcceleration = Utility.normAndScale(strategyOutput.bodyAccelerationStrength(),
             strategyOutput.bodyAccelerationDirection(), BODY_ACC_MAX);
         this.letBallPass = strategyOutput.letBallPass();

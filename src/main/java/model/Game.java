@@ -78,9 +78,8 @@ public class Game {
         TwoDimVector shotVelocitySum = new TwoDimVector(0, 0);
         Set<Player> playersWhoTouchTheBall = new HashSet<>();
         for (var player : players) {
-            List<MovingFrameElement> listWithoutPlayer = new LinkedList<>(movingFrameElements);
-            listWithoutPlayer.remove(player);
-            player.decide(Situation.generateSituationFrom(listWithoutPlayer, redScore, blueScore));
+            //die Liste die der Spieler hier kriegt enthält auch den Spieler selbst und über die id kann er wissen wer er ist
+            player.decide(Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
             if (!player.doesLetBallPass() && canPlayerShoot(player)) {
                 playersWhoTouchTheBall.add(player);
             }
