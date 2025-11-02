@@ -2,6 +2,7 @@ package model;
 
 import view.GUI;
 
+import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
@@ -32,13 +33,8 @@ public class FrameCreator {
     }
 
     public void createAndSetFrame(Situation situation) {
-        gui.setImage(createFrame(situation));
-
-    }
-
-    public void createAndSetFrameForPlayback(Situation situation, int timeInHistory) {
-        gui.setImageForPlayback(createFrame(situation), timeInHistory);
-
+        var img = createFrame(situation);
+        SwingUtilities.invokeLater(()->gui.setImage(img));
     }
 
     public static BufferedImage deepCopy(BufferedImage bi) {

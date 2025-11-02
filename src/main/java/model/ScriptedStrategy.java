@@ -60,9 +60,6 @@ public class ScriptedStrategy implements Strategy {
         }
         //hier gilt nextBallContactPlayer == perspectivePlayer
         Player simulationPerspectivePlayer = perspectivePlayer.createCopy();
-        simulationPerspectivePlayer.setVelocity(perspectivePlayer.getVelocity().scaledWith(1));
-        simulationPerspectivePlayer.setMinimalDurationBeforeNextShot(
-            perspectivePlayer.getMinimalDurationBeforeNextShot());
         if (perspectivePlayer.isTeamRed()) {
 
 
@@ -171,9 +168,6 @@ public class ScriptedStrategy implements Strategy {
                 continue;
             }
             var sp = p.createCopy();
-            sp.setMinimalDurationBeforeNextShot(0);
-            sp.setVelocity(p.getVelocity());
-            sp.setId(p.getId());
             simuPlayers.add(sp);
         }
         return simuPlayers;

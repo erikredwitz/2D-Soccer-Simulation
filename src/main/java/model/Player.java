@@ -1,5 +1,7 @@
 package model;
 
+import javax.swing.SwingUtilities;
+
 import static model.Ball.BALL_RADIUS;
 import static model.FrameCreator.HEIGHT;
 
@@ -20,8 +22,8 @@ public class Player extends MovingFrameElement {
 
     private boolean teamRed;
     private TwoDimVector bodyAcceleration = new TwoDimVector(0, 0); //wird bestimmt von Strategie
-    private boolean letBallPass = true;
-    private TwoDimVector shotVelocity = new TwoDimVector(0, 0);
+    private volatile boolean letBallPass = true;
+    private volatile TwoDimVector shotVelocity = new TwoDimVector(0, 0);
     private Strategy strategy;
     private int minimalDurationBeforeNextShot = 0;
     private int playerId; //auf Figur schreiben in der Anzeige
@@ -35,7 +37,7 @@ public class Player extends MovingFrameElement {
 
     }
 
-    public TwoDimVector getShotVelocity() {
+    public synchronized TwoDimVector getShotVelocity() {
         return shotVelocity;
     }
 
@@ -44,7 +46,7 @@ public class Player extends MovingFrameElement {
         return teamRed;
     }
 
-    public TwoDimVector getPosition() {
+    public synchronized TwoDimVector getPosition() {
         return position;
     }
 
@@ -54,21 +56,27 @@ public class Player extends MovingFrameElement {
     }
 
 
-    public TwoDimVector getVelocity() {
+    public synchronized TwoDimVector getVelocity() {
         return velocity;
     }
 
-    public TwoDimVector getBodyAcceleration() {
+    public synchronized TwoDimVector getBodyAcceleration() {
         return bodyAcceleration;
     }
 
-    public boolean doesLetBallPass() {
+    public synchronized boolean doesLetBallPass() {
         return letBallPass;
     }
 
 
     public Strategy getStrategy() {
         return strategy;
+    }
+
+    public void updateSituation(Situation situation) {
+        new Thread(() -> {
+            decide(situation); // läuft im Hintergrund
+        }).start();
     }
 
     public void decide(Situation situation) {
@@ -79,12 +87,20 @@ public class Player extends MovingFrameElement {
         }
         Player copyOfThis = createCopy();
         var strategyOutput = strategy.decide(situation, copyOfThis);
-        bodyAcceleration = Utility.normAndScale(strategyOutput.bodyAccelerationStrength(),
+        var newBodyAcceleration = Utility.normAndScale(strategyOutput.bodyAccelerationStrength(),
             strategyOutput.bodyAccelerationDirection(), BODY_ACC_MAX);
-        this.letBallPass = strategyOutput.letBallPass();
+        var newLetBallPass = strategyOutput.letBallPass();
+        var newShotVelocity = shotVelocity;
         if (!letBallPass) {
             shotVelocity = Utility.normAndScale(strategyOutput.shotStrength(), strategyOutput.shotDirection(),
                 MAX_SHOT_VELOCITY);
+        }
+        synchronized (this) {
+            bodyAcceleration = newBodyAcceleration;
+            letBallPass = newLetBallPass;
+            if(!letBallPass){
+                shotVelocity = newShotVelocity;
+            }
         }
     }
 
@@ -96,7 +112,7 @@ public class Player extends MovingFrameElement {
         return copyOfThis;
     }
 
-    public void move() {
+    public synchronized void move() {
         position.add(velocity);
         if (position.getX() + Player.PLAYER_RADIUS > Game.PITCH_LENGTH / 2.0) {
             position.setTo(Game.PITCH_LENGTH / 2.0 - PLAYER_RADIUS, position.getY());
@@ -124,7 +140,7 @@ public class Player extends MovingFrameElement {
     }
 
 
-    public void setBodyAcceleration(TwoDimVector bodyAcceleration) {
+    public synchronized void setBodyAcceleration(TwoDimVector bodyAcceleration) {
         this.bodyAcceleration = bodyAcceleration;
     }
 

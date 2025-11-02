@@ -1,13 +1,16 @@
 package model;
 
 import javax.swing.SwingWorker;
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static model.Ball.BALL_RADIUS;
 import static model.Player.PLAYER_RADIUS;
@@ -21,6 +24,8 @@ public class Game {
     public static final TwoDimVector LEFT_GOAL_CENTER = new TwoDimVector(-PITCH_LENGTH / 2.0, 0);
     private static final TwoDimVector RIGHT_GOAL_CENTER = new TwoDimVector(PITCH_LENGTH / 2.0, 0);
     public static final double SHOT_RANDOMNESS_MARGIN = 0.1;
+    public static final int SIMULATION_TIMESTEP = 100;
+
 
     private int redScore = 0;
     private int blueScore = 0;
@@ -32,12 +37,21 @@ public class Game {
 
     public final static double GOAL_SIZE_PITCH_WIDTH_RATIO = 1.0 / 7;
     private static final double MAX_DISTANCE_TO_BALL_FOR_SHOT = BALL_RADIUS + (double) PLAYER_RADIUS;
-    private int pointInTime;
+    private int nextTimeStep;
+    //the present time, i.e. the maximum accessible point in time to which the simulation has been executed
     private List<MovingFrameElement> movingFrameElements;
 
     private List<Situation> history;
 
-    public static final int RED_SIDE = -1; //red is on left side for RED_SIDE < 0. Otherwise on right side
+    public static final int RED_SIDE = -1; //red is on left side for RED_SIDE < 0. Otherwise, on right side
+
+    public void setLiveViewActivated(boolean liveViewActivated) {
+        isLiveViewActivated = liveViewActivated;
+    }
+
+    private volatile boolean isLiveViewActivated = true;
+    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<?> task;
 
     public Game(List<Player> players, Ball ball, FrameCreator frameCreator, boolean isTeamRedKickingOff) {
         this.players = players;
@@ -53,12 +67,17 @@ public class Game {
         return player.isTeamRed() ? Game.RED_SIDE : -Game.RED_SIDE;
     }
 
-    public void createAndSetFrameForPlayback(int timeInHistory) {
-        if (timeInHistory <= pointInTime) {
+    public void createAndSetFrame(int timeInHistory) {
+        if (timeInHistory <= nextTimeStep) {
             SwingWorker<Void, Void> worker = new SwingWorker<>() {
                 @Override
                 protected Void doInBackground() {
-                    frameCreator.createAndSetFrameForPlayback(history.get(timeInHistory), timeInHistory);
+                    Situation situation;
+                    synchronized (this) {
+                        situation = history.get(timeInHistory);//hier weiter debuggen: warum kommt er nicht hierhin?
+                    }
+                    System.out.println(situation);
+                    frameCreator.createAndSetFrame(situation);
                     return null;
                 }
             };
@@ -66,20 +85,23 @@ public class Game {
         }
     }
 
-    public void createFrame(int timeInHistory) {
-        if (timeInHistory <= pointInTime) {
-            frameCreator.createFrame(history.get(timeInHistory));
+    public void updateLiveView() {
+        if (!isLiveViewActivated) {
+            return;
         }
+        createAndSetFrame(getNextTimeStep()-1);
     }
 
+    //TODO Entscheidungen in eigenem Thread
 
     public void processNextTimeStep() {
         Collections.shuffle(players);
         TwoDimVector shotVelocitySum = new TwoDimVector(0, 0);
         Set<Player> playersWhoTouchTheBall = new HashSet<>();
         for (var player : players) {
-            //die Liste die der Spieler hier kriegt enthält auch den Spieler selbst und über die id kann er wissen wer er ist
-            player.decide(Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
+            //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
+            player.updateSituation(
+                Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
             if (!player.doesLetBallPass() && canPlayerShoot(player, ball)) {
                 playersWhoTouchTheBall.add(player);
             }
@@ -102,8 +124,10 @@ public class Game {
             }
         }
         ball.move();
-        pointInTime++;
-        history.add(Situation.generateSituationFrom(movingFrameElements, redScore, blueScore));
+        synchronized (this) {
+            nextTimeStep++;
+            history.add(Situation.generateSituationFrom(movingFrameElements, redScore, blueScore));
+        }
         if (ball.isInGoal()) {
             boolean isTeamRedKickingOff = ball.isInRedGoal();
             setupKickOffPosition(isTeamRedKickingOff);
@@ -204,8 +228,8 @@ public class Game {
         return timing && distance;
     }
 
-    public int getPointInTime() {
-        return pointInTime;
+    public int getNextTimeStep() {
+        return nextTimeStep;
     }
 
     public static int getGoalYStart() {
@@ -217,5 +241,21 @@ public class Game {
     }
 
 
+    public void startLive() {
+        if (task == null || task.isCancelled()) {
+            task = scheduler.scheduleAtFixedRate(() -> {
+                processNextTimeStep();
+                if (isLiveViewActivated) {
+                    updateLiveView();
+                }
+            }, 0, SIMULATION_TIMESTEP, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    public void pauseLive() {
+        if (task != null && !task.isCancelled()) {
+            task.cancel(false);
+        }
+    }
 }
 

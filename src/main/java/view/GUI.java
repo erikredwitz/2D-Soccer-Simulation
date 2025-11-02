@@ -4,23 +4,24 @@ import model.Game;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingWorker;
-import java.awt.Button;
 import java.awt.EventQueue;
 import java.awt.GridLayout;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
-import java.lang.reflect.InvocationTargetException;
 
 public class GUI extends JFrame {
+    public static final String PLAY_REPLAY = "Wiederholung abspielen";
+    public static final String PAUSE_GAME = "Spiel pausieren";
+    public static final String VIEW_LIVE = "Live-Ansicht";
+    public static final String CONTINUE_GAME = "Spiel fortsetzen";
     private JPanel panel;
     private JLabel label;
-    private Button generateButton;
+
 
     private JSlider slider;
 
@@ -34,9 +35,14 @@ public class GUI extends JFrame {
     private JButton stepForwardButton;
     private JPanel stepPanel;
     private JButton playButton;
-    private int lastImageTime = 0;
+    private JCheckBox liveViewCheckBox;
+    private JButton livePauseButton;
+
     private int playBackPosition;
-    private boolean playbackIsRunning = false;
+    private volatile boolean playbackIsRunning = false;
+    private volatile boolean isLiveRunning = false;
+
+    public static final int PRELOAD_DISTANCE = 20;
 
     public GUI() {
         initializeComponents();
@@ -46,13 +52,6 @@ public class GUI extends JFrame {
         EventQueue.invokeLater(() ->
             label.setIcon(new ImageIcon(image))
         );
-    }
-
-    public void setImageForPlayback(BufferedImage image, int timeInHistory) {
-        if (lastImageTime < timeInHistory) {
-            setImage(image);
-            lastImageTime = timeInHistory;
-        }
     }
 
     private void initializeComponents() {
@@ -82,15 +81,23 @@ public class GUI extends JFrame {
         stepForwardButton.addActionListener(e -> stepForward());
         stepPanel.add(stepForwardButton);
 
-        playButton = new JButton("abspielen");
+        playButton = new JButton(PLAY_REPLAY);
         playButton.addActionListener(e -> playButtonPressed());
         stepPanel.add(playButton);
+
+        liveViewCheckBox = new JCheckBox(VIEW_LIVE);
+        liveViewCheckBox.addActionListener(e-> toggleLiveView());
+        liveViewCheckBox.setSelected(true);
+        stepPanel.add(liveViewCheckBox);
+
+        livePauseButton = new JButton("Spiel starten");
+        livePauseButton.addActionListener(e->toggleLivePause());
+        stepPanel.add(livePauseButton);
 
         panel.setLayout(new GridLayout(2, 1));
         panel.add(navigationPanel);
 
-        generateButton = new Button("weiter");
-        generateButton.addActionListener(e -> generateNextSteps());
+
         slider = new JSlider(JSlider.HORIZONTAL,
             0, 0, 0);
         slider.setPaintTicks(true);
@@ -99,14 +106,43 @@ public class GUI extends JFrame {
         slider.setMinorTickSpacing(10);
         slider.addChangeListener(e->sliderValueChanged());
         navigationPanel.add(slider);
-        navigationPanel.add(generateButton);
 
     }
 
+    private void toggleLivePause() {
+        isLiveRunning = !isLiveRunning;
+        if(isLiveRunning){
+            livePauseButton.setText(PAUSE_GAME);
+            SwingWorker<Void, Void> worker = new SwingWorker<>() {
+                @Override
+                protected Void doInBackground() {
+                    game.startLive();
+                    return null;
+                }
+            };
+            worker.execute();
+        }
+        else{
+            livePauseButton.setText(CONTINUE_GAME);
+            game.pauseLive();
+        }
+    }
+
+    private void toggleLiveView() {
+        if(liveViewCheckBox.isSelected()){
+            stopPlayback();
+            game.setLiveViewActivated(false);
+            game.updateLiveView();
+        } else{
+            updateSliderLabels();
+            game.setLiveViewActivated(true);
+        }
+    }
+
+
     private void sliderValueChanged() {
         if(!playbackIsRunning){
-            int time = slider.getValue();
-
+            EventQueue.invokeLater(() -> game.createAndSetFrame(slider.getValue()));
         }
     }
 
@@ -121,7 +157,6 @@ public class GUI extends JFrame {
     private void startPlayback() {
         playButton.setText("stoppen");
         playbackIsRunning = true;
-        lastImageTime = 0;
         EventQueue.invokeLater(this::playUntilTheEnd);
     }
 
@@ -177,23 +212,15 @@ public class GUI extends JFrame {
         slider.setValue(Math.min(slider.getValue() + stepSizeSlider.getValue(), slider.getMaximum()));
     }
 
-    private void generateNextSteps() {
-        if (game == null) {
-            return;
-        }
-        for (int i = 0; i < 100; i++) {
-            game.processNextTimeStep();
-        }
-        slider.setPaintLabels(false);
-        slider.setPaintTicks(false);
-        slider.setPaintLabels(true);
-        slider.setPaintTicks(true);
-        slider.setMaximum(game.getPointInTime() - 1);
-        int minorTickSpacing = 1 + game.getPointInTime() / 50;
-        int majorTickSpacing = 4 * (minorTickSpacing);
-        slider.setMinorTickSpacing(minorTickSpacing);
-        slider.setMajorTickSpacing(majorTickSpacing);
-        slider.setLabelTable(slider.createStandardLabels(majorTickSpacing, 0));
+
+    private void updateSliderLabels() {
+        EventQueue.invokeLater(()-> {
+            int minorTickSpacing = 1 + game.getNextTimeStep() / 50;
+            int majorTickSpacing = 4 * (minorTickSpacing);
+            slider.setMinorTickSpacing(minorTickSpacing);
+            slider.setMajorTickSpacing(majorTickSpacing);
+            slider.setLabelTable(slider.createStandardLabels(majorTickSpacing, 0));
+        });
     }
 
 
@@ -203,7 +230,7 @@ public class GUI extends JFrame {
 
 
     private void playbackStep() {
-        game.createAndSetFrameForPlayback(playBackPosition + 1);
+        game.createAndSetFrame(playBackPosition + 1);
         playBackPosition+=stepSizeSlider.getValue();
         EventQueue.invokeLater(() -> slider.setValue(playBackPosition));
 

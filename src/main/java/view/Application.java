@@ -19,7 +19,7 @@ public class Application {
         Game game = createNewGameWithBots(5, frameCreator);
         gui.setGame(game);
         game.processNextTimeStep();
-        game.createAndSetFrameForPlayback(0);
+        game.createAndSetFrame(0);
     }
 
     private static Game createNewGameWithBots(int playersPerTeam, FrameCreator frameCreator) {
