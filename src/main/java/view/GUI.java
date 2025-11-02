@@ -23,7 +23,7 @@ public class GUI extends JFrame {
     private JLabel label;
 
 
-    private JSlider slider;
+    private JSlider replaySlider;
 
     private int oldSliderValue = 0;
 
@@ -98,14 +98,14 @@ public class GUI extends JFrame {
         panel.add(navigationPanel);
 
 
-        slider = new JSlider(JSlider.HORIZONTAL,
+        replaySlider = new JSlider(JSlider.HORIZONTAL,
             0, 0, 0);
-        slider.setPaintTicks(true);
-        slider.setPaintLabels(true);
-        slider.setMajorTickSpacing(50);
-        slider.setMinorTickSpacing(10);
-        slider.addChangeListener(e->sliderValueChanged());
-        navigationPanel.add(slider);
+        replaySlider.setPaintTicks(true);
+        replaySlider.setPaintLabels(true);
+        replaySlider.setMajorTickSpacing(50);
+        replaySlider.setMinorTickSpacing(10);
+        replaySlider.addChangeListener(e->sliderValueChanged());
+        navigationPanel.add(replaySlider);
 
     }
 
@@ -129,20 +129,21 @@ public class GUI extends JFrame {
     }
 
     private void toggleLiveView() {
-        if(liveViewCheckBox.isSelected()){
+        boolean isSelected = liveViewCheckBox.isSelected();
+        game.setLiveViewActivated(isSelected);
+        if(isSelected){
             stopPlayback();
-            game.setLiveViewActivated(false);
             game.updateLiveView();
         } else{
             updateSliderLabels();
-            game.setLiveViewActivated(true);
+            game.setLiveViewActivated(false);
         }
     }
 
 
     private void sliderValueChanged() {
         if(!playbackIsRunning){
-            EventQueue.invokeLater(() -> game.createAndSetFrame(slider.getValue()));
+            EventQueue.invokeLater(() -> game.createAndSetFrame(replaySlider.getValue()));
         }
     }
 
@@ -169,8 +170,8 @@ public class GUI extends JFrame {
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() {
-                playBackPosition = slider.getValue();
-                while (playBackPosition < slider.getMaximum() && playbackIsRunning) {
+                playBackPosition = replaySlider.getValue();
+                while (playBackPosition < replaySlider.getMaximum() && playbackIsRunning) {
                     playbackStep();
                     boolean hasWaited = false;
                     while (!hasWaited) {
@@ -205,21 +206,27 @@ public class GUI extends JFrame {
     }
 
     private void stepBack() {
-        slider.setValue(Math.max(slider.getValue() - stepSizeSlider.getValue(), slider.getMinimum()));
+        replaySlider.setValue(Math.max(replaySlider.getValue() - stepSizeSlider.getValue(), replaySlider.getMinimum()));
     }
 
     private void stepForward() {
-        slider.setValue(Math.min(slider.getValue() + stepSizeSlider.getValue(), slider.getMaximum()));
+        replaySlider.setValue(Math.min(replaySlider.getValue() + stepSizeSlider.getValue(), replaySlider.getMaximum()));
     }
 
 
     private void updateSliderLabels() {
         EventQueue.invokeLater(()-> {
-            int minorTickSpacing = 1 + game.getNextTimeStep() / 50;
-            int majorTickSpacing = 4 * (minorTickSpacing);
-            slider.setMinorTickSpacing(minorTickSpacing);
-            slider.setMajorTickSpacing(majorTickSpacing);
-            slider.setLabelTable(slider.createStandardLabels(majorTickSpacing, 0));
+            int newMax = game.getNextTimeStep() - 1;
+            replaySlider.setMaximum(newMax);
+            int minorTickSpacing = 1 + newMax / 50;
+            int majorTickSpacing = 4 * minorTickSpacing;
+            replaySlider.setMinorTickSpacing(minorTickSpacing);
+            replaySlider.setMajorTickSpacing(majorTickSpacing);
+            replaySlider.setLabelTable(replaySlider.createStandardLabels(majorTickSpacing, 0));
+            replaySlider.setPaintTicks(true);
+            replaySlider.setPaintLabels(true);
+            replaySlider.revalidate();
+            replaySlider.repaint();
         });
     }
 
@@ -232,7 +239,7 @@ public class GUI extends JFrame {
     private void playbackStep() {
         game.createAndSetFrame(playBackPosition + 1);
         playBackPosition+=stepSizeSlider.getValue();
-        EventQueue.invokeLater(() -> slider.setValue(playBackPosition));
+        EventQueue.invokeLater(() -> replaySlider.setValue(playBackPosition));
 
     }
 }

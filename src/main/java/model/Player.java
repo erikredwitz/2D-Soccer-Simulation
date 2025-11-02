@@ -92,7 +92,7 @@ public class Player extends MovingFrameElement {
         var newLetBallPass = strategyOutput.letBallPass();
         var newShotVelocity = shotVelocity;
         if (!letBallPass) {
-            shotVelocity = Utility.normAndScale(strategyOutput.shotStrength(), strategyOutput.shotDirection(),
+            newShotVelocity = Utility.normAndScale(strategyOutput.shotStrength(), strategyOutput.shotDirection(),
                 MAX_SHOT_VELOCITY);
         }
         synchronized (this) {

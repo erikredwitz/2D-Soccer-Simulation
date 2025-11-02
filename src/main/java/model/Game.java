@@ -45,9 +45,7 @@ public class Game {
 
     public static final int RED_SIDE = -1; //red is on left side for RED_SIDE < 0. Otherwise, on right side
 
-    public void setLiveViewActivated(boolean liveViewActivated) {
-        isLiveViewActivated = liveViewActivated;
-    }
+
 
     private volatile boolean isLiveViewActivated = true;
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -67,6 +65,9 @@ public class Game {
         return player.isTeamRed() ? Game.RED_SIDE : -Game.RED_SIDE;
     }
 
+    public void setLiveViewActivated(boolean liveViewActivated) {
+        isLiveViewActivated = liveViewActivated;
+    }
     public void createAndSetFrame(int timeInHistory) {
         if (timeInHistory <= nextTimeStep) {
             SwingWorker<Void, Void> worker = new SwingWorker<>() {
@@ -74,9 +75,8 @@ public class Game {
                 protected Void doInBackground() {
                     Situation situation;
                     synchronized (this) {
-                        situation = history.get(timeInHistory);//hier weiter debuggen: warum kommt er nicht hierhin?
+                        situation = history.get(timeInHistory);
                     }
-                    System.out.println(situation);
                     frameCreator.createAndSetFrame(situation);
                     return null;
                 }
@@ -84,6 +84,8 @@ public class Game {
             worker.execute();
         }
     }
+
+    //TODO: Slidererneuerung reparieren
 
     public void updateLiveView() {
         if (!isLiveViewActivated) {

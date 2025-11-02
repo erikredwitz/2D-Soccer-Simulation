@@ -4,6 +4,7 @@ import view.GUI;
 
 import javax.swing.SwingUtilities;
 import java.awt.Color;
+import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -34,7 +35,7 @@ public class FrameCreator {
 
     public void createAndSetFrame(Situation situation) {
         var img = createFrame(situation);
-        SwingUtilities.invokeLater(()->gui.setImage(img));
+        EventQueue.invokeLater(()->gui.setImage(img));
     }
 
     public static BufferedImage deepCopy(BufferedImage bi) {
