@@ -24,7 +24,7 @@ public class Game {
     public static final TwoDimVector LEFT_GOAL_CENTER = new TwoDimVector(-PITCH_LENGTH / 2.0, 0);
     private static final TwoDimVector RIGHT_GOAL_CENTER = new TwoDimVector(PITCH_LENGTH / 2.0, 0);
     public static final double SHOT_RANDOMNESS_MARGIN = 0.1;
-    public static final int SIMULATION_TIMESTEP = 100;
+    public static final int SIMULATION_TIMESTEP = 1000;
 
 
     private int redScore = 0;
@@ -44,7 +44,6 @@ public class Game {
     private List<Situation> history;
 
     public static final int RED_SIDE = -1; //red is on left side for RED_SIDE < 0. Otherwise, on right side
-
 
 
     private volatile boolean isLiveViewActivated = true;
@@ -68,6 +67,7 @@ public class Game {
     public void setLiveViewActivated(boolean liveViewActivated) {
         isLiveViewActivated = liveViewActivated;
     }
+
     public void createAndSetFrame(int timeInHistory) {
         if (timeInHistory <= nextTimeStep) {
             SwingWorker<Void, Void> worker = new SwingWorker<>() {
@@ -85,13 +85,11 @@ public class Game {
         }
     }
 
-    //TODO: Slidererneuerung reparieren
-
     public void updateLiveView() {
         if (!isLiveViewActivated) {
             return;
         }
-        createAndSetFrame(getNextTimeStep()-1);
+        createAndSetFrame(getNextTimeStep() - 1);
     }
 
     //TODO Entscheidungen in eigenem Thread
@@ -101,9 +99,7 @@ public class Game {
         TwoDimVector shotVelocitySum = new TwoDimVector(0, 0);
         Set<Player> playersWhoTouchTheBall = new HashSet<>();
         for (var player : players) {
-            //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
-            player.updateSituation(
-                Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
+            //Spieler bekommen am Ende der Methode die neue Situation gesagt, damit dann die Zeit bis zum nächsten Simulationsschritt übrig ist
             if (!player.doesLetBallPass() && canPlayerShoot(player, ball)) {
                 playersWhoTouchTheBall.add(player);
             }
@@ -138,6 +134,11 @@ public class Game {
             } else {
                 redScore++;
             }
+        }
+        for (var player : players) {
+            //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
+            player.updateSituation(
+                Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
         }
     }
 
