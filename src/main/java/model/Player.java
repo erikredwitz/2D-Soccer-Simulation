@@ -1,7 +1,5 @@
 package model;
 
-import javax.swing.SwingUtilities;
-
 import static model.Ball.BALL_RADIUS;
 import static model.FrameCreator.HEIGHT;
 
@@ -26,14 +24,18 @@ public class Player extends MovingFrameElement {
     private volatile TwoDimVector shotVelocity = new TwoDimVector(0, 0);
     private Strategy strategy;
     private int minimalDurationBeforeNextShot = 0;
-    private int playerId; //auf Figur schreiben in der Anzeige
+    private int jerseyNumber; //auf Figur schreiben in der Anzeige
     static int nextPlayerId = 1;
+    private Thread decisionThread;
+    private Situation nextSituation;
+    private boolean isNewSituation;
 
-    public Player(boolean teamRed, Strategy strategy, TwoDimVector position, int playerId) {
+
+    public Player(boolean teamRed, Strategy strategy, TwoDimVector position, int jerseyNumber) {
         super(position, new TwoDimVector(0, 0));
         this.teamRed = teamRed;
         this.strategy = strategy;
-        this.playerId = playerId;
+        this.jerseyNumber = jerseyNumber;
 
     }
 
@@ -73,11 +75,32 @@ public class Player extends MovingFrameElement {
         return strategy;
     }
 
-    public void updateSituation(Situation situation) {
-        new Thread(() -> {
-            decide(situation); // läuft im Hintergrund
-        }).start();
+    public synchronized void updateSituation(Situation situation) {
+        if (decisionThread == null) {
+            decisionThread = new Thread(() -> {
+                Situation receivedSituation;
+                while (true) {
+                    synchronized (this) {
+                        while (!isNewSituation) {
+                            try {
+                                wait(); // Warten, bis notify() aufgerufen wird
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                        isNewSituation = false;
+                        receivedSituation = nextSituation;
+                    }
+                    decide(receivedSituation);
+                }
+            });
+            decisionThread.start();
+        }
+        nextSituation = situation;
+        isNewSituation = true;
+        notifyAll();
     }
+
 
     public void decide(Situation situation) {
         var perspective = super.findMeInSituation(situation);
@@ -98,14 +121,14 @@ public class Player extends MovingFrameElement {
         synchronized (this) {
             bodyAcceleration = newBodyAcceleration;
             letBallPass = newLetBallPass;
-            if(!letBallPass){
+            if (!letBallPass) {
                 shotVelocity = newShotVelocity;
             }
         }
     }
 
     public Player createCopy() {
-        Player copyOfThis = new Player(isTeamRed(), null, position.scaledWith(1), playerId);
+        Player copyOfThis = new Player(isTeamRed(), null, position.scaledWith(1), jerseyNumber);
         copyOfThis.setId(id);
         copyOfThis.setVelocity(velocity.scaledWith(1));
         copyOfThis.setMinimalDurationBeforeNextShot(minimalDurationBeforeNextShot);
@@ -152,7 +175,7 @@ public class Player extends MovingFrameElement {
         }
     }
 
-    public int getPlayerId() {
-        return playerId;
+    public int getJerseyNumber() {
+        return jerseyNumber;
     }
 }

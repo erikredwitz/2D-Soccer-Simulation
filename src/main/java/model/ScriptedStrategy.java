@@ -2,8 +2,14 @@ package model;
 
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static java.lang.Math.PI;
 import static java.lang.Math.min;
@@ -15,16 +21,47 @@ public class ScriptedStrategy implements Strategy {
     public static final int MIN_PASS_DISTANCE = 10;
     public static final int MAN_COVERAGE_DISTANCE = 4 * Player.PLAYER_RADIUS;
     public static final int DRIBBLING_DIRECTION_SIMULATION_STEPS = 5;
+    public static final Map<Integer,Integer> decisionLog = new HashMap<>();
+    public static final List<Integer> contactIdList = new ArrayList<>();
+
 
     @Override
     public StrategyOutput decide(Situation situation, Player perspectivePlayer) {
-
         Ball ball = situation.getBall();
         var players = situation.getPlayers();
         TwoDimVector bodyAccelerationDirection = null;
         double bodyAccelerationStrength = 1;
-        int contactId = determineNextBallContactPlayer(players, ball);
-        Player nextBallContactPlayer = players.stream().filter(x->x.getId()==contactId).findFirst().get(); //es muss enthalten sein deshalb kein isEmpty-check
+        int contactId;
+        synchronized (ScriptedStrategy.class) {
+            //Statische Werte für contactId mehrere Zeitschritte speichern
+            //weil Reihenfolge der Threads unterschiedlich sein kann
+            // wie bei Tetris Einträge wieder löschen, wenn Reihe voll sozusagen, also wenn alle Threads den gespeicherten Wert benutzt haben, also für den Zeitschritt entschieden haben.
+            if (decisionLog.isEmpty()) {
+                for (var x : situation.getPlayers()) {
+                    decisionLog.put(x.id, 0);
+                }
+            }
+            int timeStepAdvantage = decisionLog.get(perspectivePlayer.id);
+            //hier wird geschaut: „bin ich der erste im neuen Zeitschritt“
+            if (contactIdList.size() <= timeStepAdvantage) {
+                contactId = determineNextBallContactPlayer(players, ball);
+                contactIdList.add(contactId);
+            }
+            else{
+                contactId = contactIdList.get(timeStepAdvantage);
+            }
+            decisionLog.put(perspectivePlayer.id, timeStepAdvantage + 1);
+            //Wenn Minimum aus decisionLog > 0 ist, dann haben alle Threads den ersten Wert von contactIdList gelesen und man kann ihn jetzt löschen
+            var minDecision = decisionLog.values().stream().min(Comparator.naturalOrder()).get();
+            var values = decisionLog.values().toString();
+            System.out.println(values + " -> " + minDecision);
+            if (minDecision > 0) { //TODO: hier weiter: bugfix: debuggen: Warum ist decisionLog auf einmal voller negativer Zahlen?
+                contactIdList.removeFirst();
+                decisionLog.replaceAll((index, advantage) -> advantage-1);
+            }
+        }
+        Player nextBallContactPlayer = players.stream().filter(x -> x.getId() == contactId).findFirst()
+            .get(); //es muss enthalten sein deshalb kein isEmpty-check
         TwoDimVector opponentGoalPos =
             Game.getGoalCenter(!perspectivePlayer.isTeamRed());
         List<Player> teamIncludingPerspective = new LinkedList<>();
@@ -46,13 +83,15 @@ public class ScriptedStrategy implements Strategy {
                 //das hier ist gerade nur freilaufen und ziemlich schlechtes freilaufen
                 TwoDimVector acc = new TwoDimVector(0, 0);
                 int factor;
-                if (isCovered(ball, perspectivePlayer.getPosition(), opponents)) {
+                if (isCovered(ball, perspectivePlayer.getPosition(),
+                    opponents)) { //isCovered-Berechnungen auch als static field speichern für alle
                     factor = 1;
                 } else {
                     factor = 0;
                 }
                 acc.add(
-                    ball.getPosition().getDifference(perspectivePlayer.getPosition()).scaledWith(factor).getNormedVector());
+                    ball.getPosition().getDifference(perspectivePlayer.getPosition()).scaledWith(factor)
+                        .getNormedVector());
                 //acc.add(opponentGoalPos.getDifference(perspectivePlayer.getPosition()).scaledWith(factor).getNormedVector());
                 return new StrategyOutput(acc, 1, true, new TwoDimVector(0, 0), 0);
             }
@@ -109,7 +148,7 @@ public class ScriptedStrategy implements Strategy {
                 break;
             }
             passOptions.remove(bestPassOption);
-            if(passOptions.isEmpty()){
+            if (passOptions.isEmpty()) {
                 break;
             }
             assert bestPassOption != null;
@@ -151,7 +190,7 @@ public class ScriptedStrategy implements Strategy {
             Ball simulationBall = ball.createCopy();
             List<Player> simuPlayers = createSimuPlayers(players, perspective);
             var nextBallContactPlayerId = determineNextBallContactPlayer(simuPlayers, simulationBall);
-            var optional = players.stream().filter(x->x.getId()==nextBallContactPlayerId).findFirst();
+            var optional = players.stream().filter(x -> x.getId() == nextBallContactPlayerId).findFirst();
             var nextBallContactPlayer = optional.get();
             if (nextBallContactPlayer.isTeamRed() == perspective.isTeamRed()) {
                 return new ShotDecision(direction, standardDribblingStrength);
@@ -163,8 +202,8 @@ public class ScriptedStrategy implements Strategy {
     private List<Player> createSimuPlayers(List<Player> players, Player perspective) {
         List<Player> simuPlayers = new ArrayList<>();
         simuPlayers.add(perspective.createCopy());
-        for(var p : players){
-            if(p.getId() == perspective.getId()){
+        for (var p : players) {
+            if (p.getId() == perspective.getId()) {
                 continue;
             }
             var sp = p.createCopy();

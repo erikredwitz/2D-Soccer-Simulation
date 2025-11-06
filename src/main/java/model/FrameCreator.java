@@ -2,7 +2,6 @@ package model;
 
 import view.GUI;
 
-import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.EventQueue;
 import java.awt.Font;
@@ -128,7 +127,7 @@ public class FrameCreator {
         graphics.setFont(new Font("Arial", Font.BOLD, FONT_SIZE_SHIRT_NUMBER));
         graphics.setColor(x.getMinimalDurationBeforeNextShot() > 0 ? Color.BLACK : Color.LIGHT_GRAY);
         final long sqrtOfRadiusRounded = Math.round(Math.sqrt(radius));
-        graphics.drawString(String.valueOf(x.getPlayerId()), getXPositionForFrame(Math.round(position.getX()),b.getWidth()) -
+        graphics.drawString(String.valueOf(x.getJerseyNumber()), getXPositionForFrame(Math.round(position.getX()),b.getWidth()) -
             sqrtOfRadiusRounded, getYPositionForFrame(Math.round(position.getY()), b.getHeight()) + sqrtOfRadiusRounded);
     }
 
