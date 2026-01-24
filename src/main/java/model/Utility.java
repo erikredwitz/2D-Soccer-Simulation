@@ -5,7 +5,7 @@ public class Utility {
         return Math.max(Math.min(original, max), min);
     }
     public static double getAngleBetween(TwoDimVector a, TwoDimVector b){
-        return a.getRadian() - b.getRadian();
+        return a.getAngleInRadians() - b.getAngleInRadians();
     }
 
     public static TwoDimVector normAndScale(double percentage,

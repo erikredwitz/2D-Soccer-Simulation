@@ -4,12 +4,10 @@ package model;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 import static java.lang.Math.PI;
 import static java.lang.Math.min;
@@ -21,7 +19,7 @@ public class ScriptedStrategy implements Strategy {
     public static final int MIN_PASS_DISTANCE = 10;
     public static final int MAN_COVERAGE_DISTANCE = 4 * Player.PLAYER_RADIUS;
     public static final int DRIBBLING_DIRECTION_SIMULATION_STEPS = 5;
-    public static final Map<Integer,Integer> decisionLog = new HashMap<>();
+    public static final Map<Integer, Integer> decisionLog = new HashMap<>();
     public static final List<Integer> contactIdList = new ArrayList<>();
 
 
@@ -32,40 +30,16 @@ public class ScriptedStrategy implements Strategy {
         TwoDimVector bodyAccelerationDirection = null;
         double bodyAccelerationStrength = 1;
         int contactId;
-        synchronized (ScriptedStrategy.class) {
-            //Statische Werte für contactId mehrere Zeitschritte speichern
-            //weil Reihenfolge der Threads unterschiedlich sein kann
-            // wie bei Tetris Einträge wieder löschen, wenn Reihe voll sozusagen, also wenn alle Threads den gespeicherten Wert benutzt haben, also für den Zeitschritt entschieden haben.
-            if (decisionLog.isEmpty()) {
-                for (var x : situation.getPlayers()) {
-                    decisionLog.put(x.id, 0);
-                }
-            }
-            int timeStepAdvantage = decisionLog.get(perspectivePlayer.id);
-            //hier wird geschaut: „bin ich der erste im neuen Zeitschritt“
-            if (contactIdList.size() <= timeStepAdvantage) {
-                contactId = determineNextBallContactPlayer(players, ball);
-                contactIdList.add(contactId);
-            }
-            else{
-                contactId = contactIdList.get(timeStepAdvantage);
-            }
-            decisionLog.put(perspectivePlayer.id, timeStepAdvantage + 1);
-            //Wenn Minimum aus decisionLog > 0 ist, dann haben alle Threads den ersten Wert von contactIdList gelesen und man kann ihn jetzt löschen
-            var minDecision = decisionLog.values().stream().min(Comparator.naturalOrder()).get();
-            var values = decisionLog.values().toString();
-            System.out.println(values + " -> " + minDecision);
-            if (minDecision > 0) { //TODO: hier weiter: bugfix: debuggen: Warum ist decisionLog auf einmal voller negativer Zahlen?
-                contactIdList.removeFirst();
-                decisionLog.replaceAll((index, advantage) -> advantage-1);
-            }
-        }
+        contactId = determineContactId(situation, perspectivePlayer, players, ball);
         Player nextBallContactPlayer = players.stream().filter(x -> x.getId() == contactId).findFirst()
             .get(); //es muss enthalten sein deshalb kein isEmpty-check
+        //System.out.println(
+        //    (perspectivePlayer.isTeamRed()?"red":"blue") +" "+ perspectivePlayer.getJerseyNumber() +": "+ (nextBallContactPlayer.isTeamRed()?"red":"blue")+" "+ nextBallContactPlayer.getJerseyNumber());
         TwoDimVector opponentGoalPos =
             Game.getGoalCenter(!perspectivePlayer.isTeamRed());
         List<Player> teamIncludingPerspective = new LinkedList<>();
         List<Player> opponents = new LinkedList<>();
+        //todo CoveredAngleInterval irgendwo einbauen fürs Passen und evtl. auch für andere Sachen, nochmal schauen
         for (var element : players) {
             if (element.isTeamRed() == perspectivePlayer.isTeamRed()) {
                 teamIncludingPerspective.add(element);
@@ -74,34 +48,21 @@ public class ScriptedStrategy implements Strategy {
             }
         }
         if (nextBallContactPlayer.getId() != perspectivePlayer.getId()) {
-            //TODO: schauen, welches Team in Ballbesitz ist
-            //TODO: abhängig davon: entweder Positionierung für Angriff oder Verteidigung
-            if (nextBallContactPlayer.isTeamRed() != perspectivePlayer.isTeamRed()) {
-                //TODO: verteidigen hinzufügen
-            } else {
-                //TODO: freilaufen verbessern
-                //das hier ist gerade nur freilaufen und ziemlich schlechtes freilaufen
-                TwoDimVector acc = new TwoDimVector(0, 0);
-                int factor;
-                if (isCovered(ball, perspectivePlayer.getPosition(),
-                    opponents)) { //isCovered-Berechnungen auch als static field speichern für alle
-                    factor = 1;
-                } else {
-                    factor = 0;
-                }
-                acc.add(
-                    ball.getPosition().getDifference(perspectivePlayer.getPosition()).scaledWith(factor)
-                        .getNormedVector());
-                //acc.add(opponentGoalPos.getDifference(perspectivePlayer.getPosition()).scaledWith(factor).getNormedVector());
-                return new StrategyOutput(acc, 1, true, new TwoDimVector(0, 0), 0);
-            }
-
+            return decideWithoutBall(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective, opponents);
+        } else {
+            return decideWithBall(perspectivePlayer, ball, bodyAccelerationStrength, opponentGoalPos,
+                teamIncludingPerspective,
+                opponents, players);
         }
+    }
+
+    private StrategyOutput decideWithBall(Player perspectivePlayer, Ball ball, double bodyAccelerationStrength,
+                                          TwoDimVector opponentGoalPos, List<Player> teamIncludingPerspective,
+                                          List<Player> opponents, List<Player> players) {
+        TwoDimVector bodyAccelerationDirection;
         //hier gilt nextBallContactPlayer == perspectivePlayer
         Player simulationPerspectivePlayer = perspectivePlayer.createCopy();
         if (perspectivePlayer.isTeamRed()) {
-
-
             var accDecision = determineBodyAccelerationForFastestBallContact(simulationPerspectivePlayer, ball);
             bodyAccelerationDirection = accDecision.direction();
             bodyAccelerationStrength = accDecision.strength();
@@ -119,7 +80,7 @@ public class ScriptedStrategy implements Strategy {
         if (!Game.canPlayerShoot(perspectivePlayer, ball)) {
             return new StrategyOutput(bodyAccelerationDirection, bodyAccelerationStrength, true,
                 perspectivePlayer.getShotVelocity(),
-                0); //kann eh nicht schießen
+                0);
         }
         //Hier kommt der Fall, dass Schießen/Ballkontakt möglich ist:
         TwoDimVector target = opponentGoalPos;
@@ -164,7 +125,105 @@ public class ScriptedStrategy implements Strategy {
 
         return new StrategyOutput(bodyAccelerationDirection, bodyAccelerationStrength, false, shotDirection,
             shotStrength);
+    }
 
+    private StrategyOutput decideWithoutBall(Player perspectivePlayer, Player nextBallContactPlayer, Ball ball,
+                                             List<Player> teamIncludingPerspective, List<Player> opponents) {
+        if (nextBallContactPlayer.isTeamRed() != perspectivePlayer.isTeamRed()) {
+            return decideWithoutBallDefending(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective,
+                opponents);
+        } else {
+            return decideWithoutBallAttacking(perspectivePlayer, ball, opponents);
+        }
+    }
+
+    private StrategyOutput decideWithoutBallDefending(Player perspectivePlayer, Player nextBallContactPlayer, Ball ball,
+                                                      List<Player> teamIncludingPerspective, List<Player> opponents) {
+        //Zuteilungsalgorithmus beim Verteidigen: min max Distanz, die Verteidiger laufen muss
+        //also erst bei allen eigenen Teammitgliedern schauen, was ist die Distanz zum nächsten defendigTarget(defendingTarget= Ball oder nicht ballführender Gegner)
+        // dann schauen, welches eigene Teammitglied ist diese kürzeste Distanz am größten
+        //dieser Spieler hat Vorrang bei der Zuteilung und diese Zuteilung wird dann gestrichen aus der Liste
+        List<TwoDimVector> defendingTargets = new ArrayList<>(
+            opponents.stream().filter(o -> o != nextBallContactPlayer).map(Player::getPosition).toList());
+        List<Player> teamLeftForMapping = new ArrayList<>(teamIncludingPerspective);
+        TwoDimVector ballPosition = ball.getPosition();
+        defendingTargets.add(ballPosition);
+        Map<Player, TwoDimVector> closestTargetMapping = new HashMap<>();
+        while (!defendingTargets.isEmpty()) {
+            for(var playerToMap: teamLeftForMapping){
+                Optional<TwoDimVector> closestTarget = defendingTargets.stream().min(Comparator.comparingDouble(o -> o.getDistanceTo(playerToMap.getPosition())));
+                closestTargetMapping.put(playerToMap, closestTarget.get());
+            }
+            var nextMappingPlayerOptional = teamLeftForMapping.stream().max(Comparator.comparingDouble(o->o.getPosition().getDistanceTo(closestTargetMapping.get(o))));
+            Player nextMappingPlayer = nextMappingPlayerOptional.orElseGet(teamLeftForMapping::getFirst);
+            TwoDimVector nextTarget = closestTargetMapping.get(nextMappingPlayer);
+            if(nextMappingPlayer == perspectivePlayer){
+                return getStrategyOutputForFastestWayToPosition(perspectivePlayer, nextTarget);
+            }else{
+                //Spieler und zugehöriges Ziel streichen und weiter machen
+                teamLeftForMapping.remove(nextMappingPlayer);
+                defendingTargets.remove(nextTarget);
+            }
+        }
+        //Man muss die komplette Zuteilung bestimmen damit das nicht passiert
+        return getStrategyOutputForFastestWayToPosition(perspectivePlayer, ballPosition);
+        //Man stoppt man den Ball dann (wenn man ihn abkriegt, bevor man die Schusseinstellung ändern konnte).
+    }
+
+    private StrategyOutput getStrategyOutputForFastestWayToPosition(Player perspectivePlayer, TwoDimVector positionToTarget) {
+        return new StrategyOutput(
+            getAccelerationForFastestWayToPosition(perspectivePlayer.getPosition(),
+                perspectivePlayer.getVelocity(), positionToTarget),
+            1, false, new TwoDimVector(0, 0), 0);
+    }
+
+    private StrategyOutput decideWithoutBallAttacking(Player perspectivePlayer, Ball ball, List<Player> opponents) {
+        //TODO: freilaufen verbessern
+        //das hier ist gerade nur freilaufen und ziemlich schlechtes freilaufen
+        TwoDimVector acc = new TwoDimVector(0, 0);
+        int factor;
+        if (isCovered(ball, perspectivePlayer.getPosition(),
+            opponents)) { //isCovered-Berechnungen auch als static field speichern für alle (optional, je nachdem ob man unterschiedliche Entscheidungsprozesse erlauben will)
+            factor = 1;
+        } else {
+            factor = 0;
+        }
+        acc.add(
+            ball.getPosition().getDifference(perspectivePlayer.getPosition()).scaledWith(factor)
+                .getNormedVector());
+        //acc.add(opponentGoalPos.getDifference(perspectivePlayer.getPosition()).scaledWith(factor).getNormedVector());
+        return new StrategyOutput(acc, 1, true, new TwoDimVector(0, 0), 0);
+    }
+
+
+    private int determineContactId(Situation situation, Player perspectivePlayer, List<Player> players, Ball ball) {
+        int contactId;
+        synchronized (ScriptedStrategy.class) {
+            //Statische Werte für contactId mehrere Zeitschritte speichern
+            //weil Reihenfolge der Threads unterschiedlich sein kann
+            // wie bei Tetris Einträge wieder löschen, wenn Reihe voll sozusagen, also wenn alle Threads den gespeicherten Wert benutzt haben, also für den Zeitschritt entschieden haben.
+            if (decisionLog.isEmpty()) {
+                for (var x : situation.getPlayers()) {
+                    decisionLog.put(x.id, 0);
+                }
+            }
+            int timeStepAdvantage = decisionLog.get(perspectivePlayer.id);
+            //hier wird geschaut: „bin ich der erste im neuen Zeitschritt“
+            if (contactIdList.size() <= timeStepAdvantage) {
+                contactId = determineNextBallContactPlayer(players, ball);
+                contactIdList.add(contactId);
+            } else {
+                contactId = contactIdList.get(timeStepAdvantage);
+            }
+            decisionLog.put(perspectivePlayer.id, timeStepAdvantage + 1);
+            //Wenn Minimum aus decisionLog > 0 ist, dann haben alle Threads den ersten Wert von contactIdList gelesen und man kann ihn jetzt löschen
+            var minDecision = decisionLog.values().stream().min(Comparator.naturalOrder()).get();
+            if (minDecision > 0) {
+                contactIdList.removeFirst();
+                decisionLog.replaceAll((index, advantage) -> advantage - 1);
+            }
+        }
+        return contactId;
     }
 
     private ShotDecision determineBestDribblingDecision(Player perspective, List<Player> players,
@@ -368,9 +427,9 @@ public class ScriptedStrategy implements Strategy {
             .scaledWith(Player.BODY_ACC_MAX);
     }
 
-    public TwoDimVector getAccelerationForFastestWayToPosition2(TwoDimVector playerPosition,
-                                                                TwoDimVector playerVelocity,
-                                                                TwoDimVector targetPosition) {
+    public TwoDimVector getAccelerationForFastestWayToPosition(TwoDimVector playerPosition,
+                                                               TwoDimVector playerVelocity,
+                                                               TwoDimVector targetPosition) {
         double b1 = targetPosition.getX();
         double b2 = targetPosition.getY();
         double v1 = playerVelocity.getX();

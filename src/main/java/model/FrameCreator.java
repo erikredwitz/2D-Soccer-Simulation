@@ -33,6 +33,7 @@ public class FrameCreator {
     }
 
     public void createAndSetFrame(Situation situation) {
+        //TODO: mit Thread und notify wie bei decide von ScriptedStrategy
         var img = createFrame(situation);
         EventQueue.invokeLater(()->gui.setImage(img));
     }

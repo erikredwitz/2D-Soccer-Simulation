@@ -48,8 +48,13 @@ public class Player extends MovingFrameElement {
         return teamRed;
     }
 
+    @Override
     public synchronized TwoDimVector getPosition() {
         return position;
+    }
+
+    public synchronized double getDistanceToPlayer(Player player){
+        return position.getDistanceTo(player.getPosition());
     }
 
     @Override

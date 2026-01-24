@@ -61,7 +61,7 @@ public class TwoDimVector {
         this.y = y;
     }
 
-    public double getRadian() {
+    public double getAngleInRadians() {
         double x = getNormedVector().getX();
         double y = getNormedVector().getY();
 

@@ -24,7 +24,7 @@ public class Game {
     public static final TwoDimVector LEFT_GOAL_CENTER = new TwoDimVector(-PITCH_LENGTH / 2.0, 0);
     private static final TwoDimVector RIGHT_GOAL_CENTER = new TwoDimVector(PITCH_LENGTH / 2.0, 0);
     public static final double SHOT_RANDOMNESS_MARGIN = 0.1;
-    public static final int SIMULATION_TIMESTEP = 33;
+    public static final int SIMULATION_TIMESTEP = 100;
 
 
     private int redScore = 0;
