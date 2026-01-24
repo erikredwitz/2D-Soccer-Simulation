@@ -30,6 +30,7 @@ public class Ball extends MovingFrameElement {
         return false;
     }
 
+    @Override
     public void setVelocity(TwoDimVector velocity) {
         if (velocity.getNorm() > MAX_VELOCITY) {
             this.velocity = velocity.getNormedVector().scaledWith(MAX_VELOCITY);
@@ -95,4 +96,7 @@ public class Ball extends MovingFrameElement {
       return copy;
     }
 
+    public void setInRedGoal(boolean inRedGoal) {
+        isInRedGoal = inRedGoal;
+    }
 }

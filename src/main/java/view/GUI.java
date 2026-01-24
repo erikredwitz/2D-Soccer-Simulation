@@ -19,6 +19,7 @@ public class GUI extends JFrame {
     public static final String PAUSE_GAME = "Spiel pausieren";
     public static final String VIEW_LIVE = "Live-Ansicht";
     public static final String CONTINUE_GAME = "Spiel fortsetzen";
+    public static final String ONE_STEP = "one step";
     private JPanel panel;
     private JLabel label;
 
@@ -43,6 +44,7 @@ public class GUI extends JFrame {
     private volatile boolean isLiveRunning = false;
 
     public static final int PRELOAD_DISTANCE = 20;
+    private JButton oneStepButton;
 
     public GUI() {
         initializeComponents();
@@ -94,6 +96,10 @@ public class GUI extends JFrame {
         livePauseButton.addActionListener(e->toggleLivePause());
         stepPanel.add(livePauseButton);
 
+        oneStepButton = new JButton(ONE_STEP);
+        oneStepButton.addActionListener(e->oneStepButtonPressed());
+        stepPanel.add(oneStepButton);
+
         panel.setLayout(new GridLayout(2, 1));
         panel.add(navigationPanel);
 
@@ -107,6 +113,17 @@ public class GUI extends JFrame {
         replaySlider.addChangeListener(e->sliderValueChanged());
         navigationPanel.add(replaySlider);
 
+    }
+
+    private void oneStepButtonPressed() {
+        game.processNextTimeStep();
+        game.updateLiveView();
+    }
+
+    public void pauseGame(){
+        if(isLiveRunning){
+            toggleLivePause();
+        }
     }
 
     private void toggleLivePause() {

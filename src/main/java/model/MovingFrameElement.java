@@ -6,7 +6,7 @@ public abstract class MovingFrameElement implements Comparable<MovingFrameElemen
     protected int id;
     protected static int nextId = 1;
 
-    public MovingFrameElement(TwoDimVector position, TwoDimVector velocity) {
+    protected MovingFrameElement(TwoDimVector position, TwoDimVector velocity) {
         this.position = position;
         this.velocity = velocity;
         this.id = nextId++;
@@ -48,11 +48,12 @@ public abstract class MovingFrameElement implements Comparable<MovingFrameElemen
 
     public void setVelocity(TwoDimVector velocity) {
         this.velocity = velocity;
+        if(Double.isNaN(this.velocity.getX())){
+            System.out.println(this.getVelocity());
+        }
     }
 
     public void setPosition(TwoDimVector position) {
-        if(position.getDistanceTo(new TwoDimVector(-Game.PITCH_LENGTH/2.0,-Game.PITCH_WIDTH/2.0)) < 1){
-        }
         this.position = position;
     }
 

@@ -153,5 +153,8 @@ public class FrameCreator {
         return (int) Math.round(yPosition + (double) (heightOfFrame / 2));
     }
 
+    public void pauseGame(){
+        gui.pauseGame();
+    }
 
 }

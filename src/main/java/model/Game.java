@@ -4,7 +4,6 @@ import javax.swing.SwingWorker;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -92,40 +91,8 @@ public class Game {
         createAndSetFrame(getNextTimeStep() - 1);
     }
 
-    //TODO Entscheidungen in eigenem Thread
 
     public void processNextTimeStep() {
-        Collections.shuffle(players);
-        TwoDimVector shotVelocitySum = new TwoDimVector(0, 0);
-        Set<Player> playersWhoTouchTheBall = new HashSet<>();
-        for (var player : players) {
-            //Spieler bekommen am Ende der Methode die neue Situation gesagt, damit dann die Zeit bis zum nächsten Simulationsschritt übrig ist
-            if (!player.doesLetBallPass() && canPlayerShoot(player, ball)) {
-                playersWhoTouchTheBall.add(player);
-            }
-        }
-        if (!playersWhoTouchTheBall.isEmpty()) {
-            for (var player : playersWhoTouchTheBall) {
-                shotVelocitySum.add(player.getShotVelocity());
-                player.setMinimalDurationBeforeNextShot(MINIMAL_DURATION_BEFORE_NEXT_SHOT);
-            }
-            ball.setVelocity(shotVelocitySum.getNormedVector()
-                .scaledWith(shotVelocitySum.getNorm() + ball.getVelocity().getNorm()));
-            ball.setVelocity(
-                ball.getVelocity().rotated(Math.random() * SHOT_RANDOMNESS_MARGIN - 0.5 * SHOT_RANDOMNESS_MARGIN));
-        }
-
-        for (var player : players) {
-            player.move();
-            if (isInForbiddenArea(player)) {
-                player.setPosition(getClosestAllowedPosition(player));
-            }
-        }
-        ball.move();
-        synchronized (this) {
-            nextTimeStep++;
-            history.add(Situation.generateSituationFrom(movingFrameElements, redScore, blueScore));
-        }
         if (ball.isInGoal()) {
             boolean isTeamRedKickingOff = ball.isInRedGoal();
             setupKickOffPosition(isTeamRedKickingOff);
@@ -135,11 +102,80 @@ public class Game {
                 redScore++;
             }
         }
-        for (var player : players) {
-            //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
-            player.updateSituation(
-                Situation.generateSituationFrom(new LinkedList<>(movingFrameElements), redScore, blueScore));
+        else{
+            Collections.shuffle(players);
+            TwoDimVector shotVelocitySum = new TwoDimVector(0, 0);
+            Set<Player> playersWhoTouchTheBall = new HashSet<>();
+            for (var player : players) {
+                //Spieler bekommen am Ende der Methode die neue Situation gesagt, damit dann die Zeit bis zum nächsten Simulationsschritt übrig ist
+                if (!player.doesLetBallPass() && canPlayerShoot(player, ball)) {
+                    playersWhoTouchTheBall.add(player);
+                }
+            }
+            if (!playersWhoTouchTheBall.isEmpty()) {
+                for (var player : playersWhoTouchTheBall) {
+                    shotVelocitySum.add(player.getShotVelocity());
+                    player.setMinimalDurationBeforeNextShot(MINIMAL_DURATION_BEFORE_NEXT_SHOT);
+                }
+                ball.setVelocity(shotVelocitySum.getNormedVector()
+                    .scaledWith(shotVelocitySum.getNorm() + ball.getVelocity().getNorm()));
+                ball.setVelocity(
+                    ball.getVelocity().rotated(Math.random() * SHOT_RANDOMNESS_MARGIN - 0.5 * SHOT_RANDOMNESS_MARGIN));
+            }
+
+            for (var player : players) {
+                player.move();
+                if (isInForbiddenArea(player)) {
+                    player.setPosition(getClosestAllowedPosition(player));
+                }
+            }
+            ball.move();
         }
+        boolean hasNaNValues = movingFrameElements.stream().anyMatch(p->Double.isNaN(p.getVelocity().getX()));
+        if(hasNaNValues){
+            //go back one step for debugging.
+            //todo wie es aussieht eine race condition
+            frameCreator.pauseGame();
+            var previousSituation = history.getLast();
+            resetToSituation(previousSituation);
+            for (var player : players) {
+                //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
+                player.updateSituation(previousSituation);
+            }
+        }else{
+            Situation situation = Situation.generateSituationFrom(movingFrameElements, redScore, blueScore);
+            synchronized (this) {
+                nextTimeStep++;
+                history.add(situation);
+            }
+            for (var player : players) {
+                //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
+                player.updateSituation(situation);
+            }
+        }
+
+    }
+
+    private void resetToSituation(Situation situation) {
+        for (int i = 0; i < players.size(); i++) {
+            var player = players.get(i);
+            Player substitute = situation.getPlayers().stream().filter(s -> s.getId() == player.getId()).findFirst().get();
+            player.setVelocity(substitute.getVelocity());
+            player.setPosition(substitute.getPosition());
+            player.setBodyAcceleration(substitute.getBodyAcceleration());
+            player.setMinimalDurationBeforeNextShot(substitute.getMinimalDurationBeforeNextShot());
+            player.setJerseyNumber(substitute.getJerseyNumber());
+            player.setLetBallPass(substitute.isLetBallPass());
+            player.setNewSituation(substitute.isNewSituation());
+            player.setNextSituation(substitute.getNextSituation());
+            player.setTeamRed(player.isTeamRed());
+        }
+        var substituteBall = situation.getBall();
+        this.ball.setPosition(substituteBall.getPosition());
+        this.ball.setId(substituteBall.getId());
+        this.ball.setVelocity(substituteBall.getVelocity());
+        this.ball.setInGoal(substituteBall.isInGoal());
+        this.ball.setInRedGoal(substituteBall.isInRedGoal());
     }
 
     private void setupKickOffPosition(boolean isTeamRedKickingOff) {

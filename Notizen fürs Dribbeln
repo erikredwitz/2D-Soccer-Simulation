@@ -1,0 +1,16 @@
+könnte man Parameter fürs Dribbeln durch ausprobieren automatisch rausfinden?
+
+welche Parameter sind es, die man braucht?
+
+man braucht ein Mapping
+welche shotvelocity für welche Distanz zum nächsten Ballkontakt
+
+also man könnte schauen wo die Gegner sind
+wie weit weg sie sind
+und dann wenn sie zu nah sind nicht in diese Richtung gehen
+und wenn sie eine gewisse Distanz haben, dann den Ball so vorlegen, dass man ihn noch vor dem Gegner erreicht, also kurz vor der Mitte der aktuellen Strecke zum Gegner
+
+ich machs ja jetzt mit ner Simulation also auch okay
+man könnte nur vielleicht die Reihenfolge ein bisschen anders verschachteln
+sodass man lieber "mit höherer shotVelocity dribbelt und ein bisschen zur Seite geht" als "direkt nach vorne und dafür kleinere shotVelocity"
+

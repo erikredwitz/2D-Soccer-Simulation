@@ -30,11 +30,9 @@ public class ScriptedStrategy implements Strategy {
         TwoDimVector bodyAccelerationDirection = null;
         double bodyAccelerationStrength = 1;
         int contactId;
-        contactId = determineContactId(situation, perspectivePlayer, players, ball);
+        contactId = determineNextBallContactPlayer(players, ball);
         Player nextBallContactPlayer = players.stream().filter(x -> x.getId() == contactId).findFirst()
             .get(); //es muss enthalten sein deshalb kein isEmpty-check
-        //System.out.println(
-        //    (perspectivePlayer.isTeamRed()?"red":"blue") +" "+ perspectivePlayer.getJerseyNumber() +": "+ (nextBallContactPlayer.isTeamRed()?"red":"blue")+" "+ nextBallContactPlayer.getJerseyNumber());
         TwoDimVector opponentGoalPos =
             Game.getGoalCenter(!perspectivePlayer.isTeamRed());
         List<Player> teamIncludingPerspective = new LinkedList<>();
@@ -48,13 +46,15 @@ public class ScriptedStrategy implements Strategy {
             }
         }
         if (nextBallContactPlayer.getId() != perspectivePlayer.getId()) {
-            return decideWithoutBall(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective, opponents);
+            return decideWithoutBall(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective,
+                opponents);
         } else {
             return decideWithBall(perspectivePlayer, ball, bodyAccelerationStrength, opponentGoalPos,
                 teamIncludingPerspective,
                 opponents, players);
         }
     }
+
 
     private StrategyOutput decideWithBall(Player perspectivePlayer, Ball ball, double bodyAccelerationStrength,
                                           TwoDimVector opponentGoalPos, List<Player> teamIncludingPerspective,
@@ -76,13 +76,7 @@ public class ScriptedStrategy implements Strategy {
             bodyAccelerationDirection = ball.getPosition().getDifference(perspectivePlayer.getPosition());
         }
 
-        //Übers Schießen nur bei minimalDuration before shot == null nachdenken
-        if (!Game.canPlayerShoot(perspectivePlayer, ball)) {
-            return new StrategyOutput(bodyAccelerationDirection, bodyAccelerationStrength, true,
-                perspectivePlayer.getShotVelocity(),
-                0);
-        }
-        //Hier kommt der Fall, dass Schießen/Ballkontakt möglich ist:
+        //Übers Schießen nicht nur im Fall canPlayerShoot nachdenken, auch sonst
         TwoDimVector target = opponentGoalPos;
         double shotStrength = 1;
         List<Player> passOptions = new LinkedList<>(teamIncludingPerspective);
@@ -92,20 +86,18 @@ public class ScriptedStrategy implements Strategy {
             (target != opponentGoalPos && target.getDistanceTo(perspectivePlayer.getPosition()) < MIN_PASS_DISTANCE)) {
             Player bestPassOption =
                 getClosestElementToPos(passOptions, opponentGoalPos);
-            if (bestPassOption == perspectivePlayer) {
+            if (bestPassOption.getId() == perspectivePlayer.getId()) {
                 //dribbeln
                 //in Richtung gegnerisches Tor im Idealfall
                 //aber so dass Gegner nicht drankommt
                 //wenn dribbeln nicht möglich: irgendwohin möglichst nach vorne schießen, wo der Gegner erstmal nicht sofort den Ball kriegt sondern erst laufen muss (klären)
 
-                //Gegner A zwischen Ball und Tor mit kleinster Distanz zum Ball finden
-                //Wenn A näher als Distanz D dann vorbeilegen
                 dribble = true;
-                shotStrength = 0.01; //TODO genauen Wert finden
                 target = opponentGoalPos;
                 ShotDecision shotDecision =
                     determineBestDribblingDecision(simulationPerspectivePlayer, players, ball, opponentGoalPos);
                 shotDirection = shotDecision.direction();
+                shotStrength = shotDecision.strength();
                 break;
             }
             passOptions.remove(bestPassOption);
@@ -115,7 +107,6 @@ public class ScriptedStrategy implements Strategy {
             assert bestPassOption != null;
             //TODO: Zielposition des Passes optimieren (siehe „wohin passen.png“)
             target = bestPassOption.getPosition();
-
         }
 
         if (!dribble) {
@@ -150,16 +141,18 @@ public class ScriptedStrategy implements Strategy {
         defendingTargets.add(ballPosition);
         Map<Player, TwoDimVector> closestTargetMapping = new HashMap<>();
         while (!defendingTargets.isEmpty()) {
-            for(var playerToMap: teamLeftForMapping){
-                Optional<TwoDimVector> closestTarget = defendingTargets.stream().min(Comparator.comparingDouble(o -> o.getDistanceTo(playerToMap.getPosition())));
+            for (var playerToMap : teamLeftForMapping) {
+                Optional<TwoDimVector> closestTarget = defendingTargets.stream()
+                    .min(Comparator.comparingDouble(o -> o.getDistanceTo(playerToMap.getPosition())));
                 closestTargetMapping.put(playerToMap, closestTarget.get());
             }
-            var nextMappingPlayerOptional = teamLeftForMapping.stream().max(Comparator.comparingDouble(o->o.getPosition().getDistanceTo(closestTargetMapping.get(o))));
+            var nextMappingPlayerOptional = teamLeftForMapping.stream()
+                .max(Comparator.comparingDouble(o -> o.getPosition().getDistanceTo(closestTargetMapping.get(o))));
             Player nextMappingPlayer = nextMappingPlayerOptional.orElseGet(teamLeftForMapping::getFirst);
             TwoDimVector nextTarget = closestTargetMapping.get(nextMappingPlayer);
-            if(nextMappingPlayer == perspectivePlayer){
+            if (nextMappingPlayer == perspectivePlayer) {
                 return getStrategyOutputForFastestWayToPosition(perspectivePlayer, nextTarget);
-            }else{
+            } else {
                 //Spieler und zugehöriges Ziel streichen und weiter machen
                 teamLeftForMapping.remove(nextMappingPlayer);
                 defendingTargets.remove(nextTarget);
@@ -170,7 +163,8 @@ public class ScriptedStrategy implements Strategy {
         //Man stoppt man den Ball dann (wenn man ihn abkriegt, bevor man die Schusseinstellung ändern konnte).
     }
 
-    private StrategyOutput getStrategyOutputForFastestWayToPosition(Player perspectivePlayer, TwoDimVector positionToTarget) {
+    private StrategyOutput getStrategyOutputForFastestWayToPosition(Player perspectivePlayer,
+                                                                    TwoDimVector positionToTarget) {
         return new StrategyOutput(
             getAccelerationForFastestWayToPosition(perspectivePlayer.getPosition(),
                 perspectivePlayer.getVelocity(), positionToTarget),
@@ -195,8 +189,9 @@ public class ScriptedStrategy implements Strategy {
         return new StrategyOutput(acc, 1, true, new TwoDimVector(0, 0), 0);
     }
 
-
-    private int determineContactId(Situation situation, Player perspectivePlayer, List<Player> players, Ball ball) {
+    //Todo ist das wirklich richtig so? Wozu ist das decisionLog, wenn die Entscheidungen doch asynchron zum Spiel laufen? Warum müssen alle Threads überhaupt alles lesen, sie müssen doch nur die aktuelle Situation kennen
+    private int determineContactIdSynchronized(Situation situation, Player perspectivePlayer, List<Player> players,
+                                               Ball ball) {
         int contactId;
         synchronized (ScriptedStrategy.class) {
             //Statische Werte für contactId mehrere Zeitschritte speichern
@@ -236,35 +231,52 @@ public class ScriptedStrategy implements Strategy {
         //man könnte ja auch dribbeln um einen Passweg zu finden
 
         //erstmal einfache Variante mit 10 Schritten, nur Richtung prüfen, Standarddribblingstärke benutzen
-        final double standardDribblingStrength = 0.1;
+        //nicht simulieren, weil man ja als nextBallcontact player zählt, wenn man den Ball berührt
+        //also könnte man vielleicht schauen ob man irgendwann den Ball nicht berührt und ihn dann wieder als erstes einholt
+        //so könnte man dribbeln
+        //aber man könnte ja vielleicht auch mit sehr enger Ballführung dribbeln so dass man den Ball dauerhaft mit dem Kreis berührt wenn der cooldown dafür reicht
+        // also es ist ja eher entscheidend ob Gegner in dem Bereich sind wo man hinlaufen will
+        //also einfach schauen ob da Leute im Umkreis sind in der Richtung
+        //so: aktuelle Pos + Stückchen in Dribblingrichtung nehmen und dann schauen ist im Umkreis von x pixeln da ein Gegner
+        //Beim Bestimmen von x orientieren an der Größe eines Spielers
+        //und Stärke für shot velocity beim Dribbling kann man machen indem man sich orientiert an 1.5* (max player velocity / max shot velocity)
+
+        //doch die Sache mit nextContactPlayer simulieren weil da der Schuss-Cooldown berücksichtigt wird
+
+
         TwoDimVector goalDirectionFromBall = opponentGoalPos.getDifference(ball.getPosition());
         int steps = DRIBBLING_DIRECTION_SIMULATION_STEPS;
         for (int i = 0; i < steps; i++) {
-            int offsetDirection = 1;
-            if (i % 2 == 0) {
-                offsetDirection = -1;
+            int offsetDirection = 0;
+            if (i > 0) {
+                if (i % 2 == 0) {
+                    offsetDirection = 1;
+                } else {
+                    offsetDirection = -1;
+                }
             }
-            var direction = goalDirectionFromBall.rotated(offsetDirection * PI / (steps * 2));
-            var simulationVelocity = goalDirectionFromBall.getNormedVector().scaledWith(standardDribblingStrength);
-            Ball simulationBall = ball.createCopy();
-            List<Player> simuPlayers = createSimuPlayers(players, perspective);
-            var nextBallContactPlayerId = determineNextBallContactPlayer(simuPlayers, simulationBall);
-            var optional = players.stream().filter(x -> x.getId() == nextBallContactPlayerId).findFirst();
-            var nextBallContactPlayer = optional.get();
-            if (nextBallContactPlayer.isTeamRed() == perspective.isTeamRed()) {
-                return new ShotDecision(direction, standardDribblingStrength);
+            var direction = goalDirectionFromBall.rotated(2* offsetDirection * PI / (steps-1));
+            double dribblingStrength = 0.05;
+            while(dribblingStrength > 0.01){
+                Ball simulationBall = ball.createCopy();
+                List<Player> simuPlayers = createSimuPlayers(players);
+                var nextBallContactPlayerId = determineNextBallContactPlayer(simuPlayers, simulationBall);
+                var optional = players.stream().filter(x -> x.getId() == nextBallContactPlayerId).findFirst();
+                var nextBallContactPlayer = optional.get();
+                if (nextBallContactPlayer.isTeamRed() == perspective.isTeamRed()) {
+                    return new ShotDecision(direction, dribblingStrength);
+                }
+            dribblingStrength -= 0.01;
             }
+
         }
         return new ShotDecision(goalDirectionFromBall.rotated(PI / 10.0), Player.MAX_SHOT_VELOCITY);
     }
 
-    private List<Player> createSimuPlayers(List<Player> players, Player perspective) {
+
+    private List<Player> createSimuPlayers(List<Player> players) {
         List<Player> simuPlayers = new ArrayList<>();
-        simuPlayers.add(perspective.createCopy());
         for (var p : players) {
-            if (p.getId() == perspective.getId()) {
-                continue;
-            }
             var sp = p.createCopy();
             simuPlayers.add(sp);
         }
@@ -277,9 +289,6 @@ public class ScriptedStrategy implements Strategy {
         int minStepsIndex = 0;
         for (int i = 1; i < elements.size(); i++) {
             var e = elements.get(i);
-            if (e.isBall()) {
-                continue;
-            }
             var accDecision = determineBodyAccelerationForFastestBallContact(e, ball);
             if (accDecision.timeSteps() < minSteps) {
                 minSteps = accDecision.timeSteps();
@@ -296,20 +305,20 @@ public class ScriptedStrategy implements Strategy {
         //verschiedene Szenarien simulieren: Welchen Punkt soll n anpeilen, um möglichst früh an den Ball zu kommen?
         Ball scenarioBall = ball.createCopy();
         Player scenarioPlayer = perspective.createCopy();
+        Player perspectiveCopy = perspective.createCopy();
         int maxSimulationLength = 300;
-        int timesteps = 0;
+        int timesteps = 301;
         for (int i = 0; i < maxSimulationLength; i++) {
-            double distance = scenarioBall.getPosition().getDistanceTo(scenarioPlayer.getPosition());
-            if (distance < Player.RADIUS_SUM && scenarioPlayer.getMinimalDurationBeforeNextShot() == 0) {
+            if (Game.canPlayerShoot(scenarioPlayer, scenarioBall)) {
                 bodyAccelerationDirection =
-                    determineBodyAccelerationDirectionForFastestWayToPosition(perspective.getPosition(),
-                        perspective.getVelocity(),
+                    determineBodyAccelerationDirectionForFastestWayToPosition(perspectiveCopy.getPosition(),
+                        perspectiveCopy.getVelocity(),
                         scenarioBall.position);
                 timesteps = i;
                 break;
             }
-            scenarioPlayer.setPosition(new TwoDimVector(perspective.getPosition()));
-            scenarioPlayer.setVelocity(new TwoDimVector(perspective.getVelocity()));
+            scenarioPlayer.setPosition(new TwoDimVector(perspectiveCopy.getPosition()));
+            scenarioPlayer.setVelocity(new TwoDimVector(perspectiveCopy.getVelocity()));
             for (int j = 1; j <= i; j++) {
                 TwoDimVector accToBall =
                     determineBodyAccelerationDirectionForFastestWayToPosition(scenarioPlayer.position,
@@ -407,7 +416,8 @@ public class ScriptedStrategy implements Strategy {
             while (secondAngleDistance > PI) {
                 secondAngleDistance -= 2 * PI;
             }
-            boolean playerIsInsideBounds = firstAngleDistance < PASS_WAY_ANGLE || secondAngleDistance < PASS_WAY_ANGLE;
+            boolean playerIsInsideBounds =
+                firstAngleDistance < PASS_WAY_ANGLE || secondAngleDistance < PASS_WAY_ANGLE;
             if (playerIsInsideBounds) {
                 return true;
             }
@@ -499,3 +509,5 @@ public class ScriptedStrategy implements Strategy {
         }
     }
 }
+
+

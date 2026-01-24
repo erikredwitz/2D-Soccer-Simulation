@@ -53,7 +53,7 @@ public class Player extends MovingFrameElement {
         return position;
     }
 
-    public synchronized double getDistanceToPlayer(Player player){
+    public synchronized double getDistanceToPlayer(Player player) {
         return position.getDistanceTo(player.getPosition());
     }
 
@@ -182,5 +182,57 @@ public class Player extends MovingFrameElement {
 
     public int getJerseyNumber() {
         return jerseyNumber;
+    }
+
+    public String getStringRepresentation() {
+        return (isTeamRed() ? "Red" : "Blue") + " " + getJerseyNumber();
+    }
+
+    public void setNewSituation(boolean newSituation) {
+        isNewSituation = newSituation;
+    }
+
+    public void setNextSituation(Situation nextSituation) {
+        this.nextSituation = nextSituation;
+    }
+
+    public void setDecisionThread(Thread decisionThread) {
+        this.decisionThread = decisionThread;
+    }
+
+    public void setJerseyNumber(int jerseyNumber) {
+        this.jerseyNumber = jerseyNumber;
+    }
+
+    public void setStrategy(Strategy strategy) {
+        this.strategy = strategy;
+    }
+
+    public void setShotVelocity(TwoDimVector shotVelocity) {
+        this.shotVelocity = shotVelocity;
+    }
+
+    public void setLetBallPass(boolean letBallPass) {
+        this.letBallPass = letBallPass;
+    }
+
+    public void setTeamRed(boolean teamRed) {
+        this.teamRed = teamRed;
+    }
+
+    public boolean isLetBallPass() {
+        return letBallPass;
+    }
+
+    public Situation getNextSituation() {
+        return nextSituation;
+    }
+
+    public boolean isNewSituation() {
+        return isNewSituation;
+    }
+
+    public Thread getDecisionThread() {
+        return decisionThread;
     }
 }
