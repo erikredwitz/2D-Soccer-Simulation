@@ -1,8 +1,11 @@
 package model;
 
 public class Utility {
+    private Utility() {
+    }
+
     public static double putInRange(double original, int min, int max){
-        return Math.max(Math.min(original, max), min);
+        return Math.clamp(original, min, max);
     }
     public static double getAngleBetween(TwoDimVector a, TwoDimVector b){
         return a.getAngleInRadians() - b.getAngleInRadians();

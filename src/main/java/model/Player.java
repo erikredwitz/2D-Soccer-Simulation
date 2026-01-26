@@ -80,7 +80,7 @@ public class Player extends MovingFrameElement {
         return strategy;
     }
 
-    public synchronized void updateSituation(Situation situation) {
+    public void updateSituation(Situation situation) {
         if (decisionThread == null) {
             decisionThread = new Thread(() -> {
                 Situation receivedSituation;
@@ -101,9 +101,11 @@ public class Player extends MovingFrameElement {
             });
             decisionThread.start();
         }
-        nextSituation = situation;
-        isNewSituation = true;
-        notifyAll();
+        synchronized (this){
+            nextSituation = situation;
+            isNewSituation = true;
+            notifyAll();
+        }
     }
 
 
@@ -188,11 +190,11 @@ public class Player extends MovingFrameElement {
         return (isTeamRed() ? "Red" : "Blue") + " " + getJerseyNumber();
     }
 
-    public void setNewSituation(boolean newSituation) {
+    public synchronized void setNewSituation(boolean newSituation) {
         isNewSituation = newSituation;
     }
 
-    public void setNextSituation(Situation nextSituation) {
+    public synchronized void setNextSituation(Situation nextSituation) {
         this.nextSituation = nextSituation;
     }
 
@@ -224,11 +226,11 @@ public class Player extends MovingFrameElement {
         return letBallPass;
     }
 
-    public Situation getNextSituation() {
+    public synchronized Situation getNextSituation() {
         return nextSituation;
     }
 
-    public boolean isNewSituation() {
+    public synchronized boolean isNewSituation() {
         return isNewSituation;
     }
 

@@ -11,7 +11,6 @@ import java.util.Optional;
 
 import static java.lang.Math.PI;
 import static java.lang.Math.min;
-import static java.lang.Math.pow;
 
 public class ScriptedStrategy implements Strategy {
 
@@ -46,12 +45,16 @@ public class ScriptedStrategy implements Strategy {
             }
         }
         if (nextBallContactPlayer.getId() != perspectivePlayer.getId()) {
-            return decideWithoutBall(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective,
-                opponents);
+            final StrategyOutput strategyOutput =
+                decideWithoutBall(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective,
+                    opponents);
+            return strategyOutput;
         } else {
-            return decideWithBall(perspectivePlayer, ball, bodyAccelerationStrength, opponentGoalPos,
-                teamIncludingPerspective,
-                opponents, players);
+            final StrategyOutput strategyOutput =
+                decideWithBall(perspectivePlayer, ball, bodyAccelerationStrength, opponentGoalPos,
+                    teamIncludingPerspective,
+                    opponents, players);
+            return strategyOutput;
         }
     }
 
@@ -62,19 +65,9 @@ public class ScriptedStrategy implements Strategy {
         TwoDimVector bodyAccelerationDirection;
         //hier gilt nextBallContactPlayer == perspectivePlayer
         Player simulationPerspectivePlayer = perspectivePlayer.createCopy();
-        if (perspectivePlayer.isTeamRed()) {
-            var accDecision = determineBodyAccelerationForFastestBallContact(simulationPerspectivePlayer, ball);
-            bodyAccelerationDirection = accDecision.direction();
-            bodyAccelerationStrength = accDecision.strength();
-        } else {
-            TwoDimVector defaultPosAfterNextStep = new TwoDimVector(0, 0);
-            defaultPosAfterNextStep.add(perspectivePlayer.getPosition());
-            defaultPosAfterNextStep.add(perspectivePlayer.getVelocity());
-            bodyAccelerationDirection = ball.getPosition().getDifference(defaultPosAfterNextStep);
-        }
-        if (bodyAccelerationDirection == null) {
-            bodyAccelerationDirection = ball.getPosition().getDifference(perspectivePlayer.getPosition());
-        }
+        var accDecision = determineBodyAccelerationForFastestBallContact(simulationPerspectivePlayer, ball);
+        bodyAccelerationDirection = accDecision.direction();
+        bodyAccelerationStrength = accDecision.strength();
 
         //Übers Schießen nicht nur im Fall canPlayerShoot nachdenken, auch sonst
         TwoDimVector target = opponentGoalPos;
@@ -113,7 +106,6 @@ public class ScriptedStrategy implements Strategy {
             shotDirection = target.getDifference(perspectivePlayer.getPosition());
         }
 
-
         return new StrategyOutput(bodyAccelerationDirection, bodyAccelerationStrength, false, shotDirection,
             shotStrength);
     }
@@ -121,10 +113,13 @@ public class ScriptedStrategy implements Strategy {
     private StrategyOutput decideWithoutBall(Player perspectivePlayer, Player nextBallContactPlayer, Ball ball,
                                              List<Player> teamIncludingPerspective, List<Player> opponents) {
         if (nextBallContactPlayer.isTeamRed() != perspectivePlayer.isTeamRed()) {
-            return decideWithoutBallDefending(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective,
-                opponents);
+            final StrategyOutput strategyOutput =
+                decideWithoutBallDefending(perspectivePlayer, nextBallContactPlayer, ball, teamIncludingPerspective,
+                    opponents);
+            return strategyOutput;
         } else {
-            return decideWithoutBallAttacking(perspectivePlayer, ball, opponents);
+            final StrategyOutput strategyOutput = decideWithoutBallAttacking(perspectivePlayer, ball, opponents);
+            return strategyOutput;
         }
     }
 
@@ -151,7 +146,9 @@ public class ScriptedStrategy implements Strategy {
             Player nextMappingPlayer = nextMappingPlayerOptional.orElseGet(teamLeftForMapping::getFirst);
             TwoDimVector nextTarget = closestTargetMapping.get(nextMappingPlayer);
             if (nextMappingPlayer == perspectivePlayer) {
-                return getStrategyOutputForFastestWayToPosition(perspectivePlayer, nextTarget);
+                final StrategyOutput strategyOutput =
+                    getStrategyOutputForFastestWayToPosition(perspectivePlayer, nextTarget);
+                return strategyOutput;
             } else {
                 //Spieler und zugehöriges Ziel streichen und weiter machen
                 teamLeftForMapping.remove(nextMappingPlayer);
@@ -159,15 +156,17 @@ public class ScriptedStrategy implements Strategy {
             }
         }
         //Man muss die komplette Zuteilung bestimmen damit das nicht passiert
-        return getStrategyOutputForFastestWayToPosition(perspectivePlayer, ballPosition);
+        final StrategyOutput strategyOutput =
+            getStrategyOutputForFastestWayToPosition(perspectivePlayer, ballPosition);
+        return strategyOutput;
         //Man stoppt man den Ball dann (wenn man ihn abkriegt, bevor man die Schusseinstellung ändern konnte).
     }
 
     private StrategyOutput getStrategyOutputForFastestWayToPosition(Player perspectivePlayer,
                                                                     TwoDimVector positionToTarget) {
         return new StrategyOutput(
-            getAccelerationForFastestWayToPosition(perspectivePlayer.getPosition(),
-                perspectivePlayer.getVelocity(), positionToTarget),
+            calculateAccelerationForFastestWayToPosition(perspectivePlayer.getPosition(),
+                perspectivePlayer.getVelocity(), positionToTarget, perspectivePlayer.isTeamRed()),
             1, false, new TwoDimVector(0, 0), 0);
     }
 
@@ -301,7 +300,7 @@ public class ScriptedStrategy implements Strategy {
 
     private AccelerationDecision determineBodyAccelerationForFastestBallContact(Player perspective,
                                                                                 Ball ball) {
-        TwoDimVector bodyAccelerationDirection = null;
+        TwoDimVector bodyAccelerationDirection = new TwoDimVector(0,0);//falls man in 300 Schritten nicht an den Ball kommt 0,0 als Beschleunigung nehmen
         //verschiedene Szenarien simulieren: Welchen Punkt soll n anpeilen, um möglichst früh an den Ball zu kommen?
         Ball scenarioBall = ball.createCopy();
         Player scenarioPlayer = perspective.createCopy();
@@ -311,9 +310,9 @@ public class ScriptedStrategy implements Strategy {
         for (int i = 0; i < maxSimulationLength; i++) {
             if (Game.canPlayerShoot(scenarioPlayer, scenarioBall)) {
                 bodyAccelerationDirection =
-                    determineBodyAccelerationDirectionForFastestWayToPosition(perspectiveCopy.getPosition(),
+                    calculateAccelerationForFastestWayToPosition(perspectiveCopy.getPosition(),
                         perspectiveCopy.getVelocity(),
-                        scenarioBall.position);
+                        scenarioBall.position, perspectiveCopy.isTeamRed());
                 timesteps = i;
                 break;
             }
@@ -321,9 +320,10 @@ public class ScriptedStrategy implements Strategy {
             scenarioPlayer.setVelocity(new TwoDimVector(perspectiveCopy.getVelocity()));
             for (int j = 1; j <= i; j++) {
                 TwoDimVector accToBall =
-                    determineBodyAccelerationDirectionForFastestWayToPosition(scenarioPlayer.position,
+                    calculateAccelerationForFastestWayToPosition(scenarioPlayer.position,
                         scenarioPlayer.velocity,
-                        scenarioBall.position);
+                        scenarioBall.position,
+                        scenarioPlayer.isTeamRed());
                 scenarioPlayer.setBodyAcceleration(accToBall);
                 scenarioPlayer.move();
             }
@@ -430,82 +430,86 @@ public class ScriptedStrategy implements Strategy {
         return new TwoDimVector(Game.PITCH_LENGTH * 0.1, 0);
     }
 
-    public TwoDimVector determineBodyAccelerationDirectionForFastestWayToPosition(TwoDimVector playerPosition,
+    public TwoDimVector oldMethodDetermineBodyAccelerationDirectionForFastestWayToPosition(TwoDimVector playerPosition,
                                                                                   TwoDimVector playerVelocity,
                                                                                   TwoDimVector targetPosition) {
         return targetPosition.getDifference(playerPosition.plus(playerVelocity)).getNormedVector()
             .scaledWith(Player.BODY_ACC_MAX);
     }
-
-    public TwoDimVector getAccelerationForFastestWayToPosition(TwoDimVector playerPosition,
-                                                               TwoDimVector playerVelocity,
-                                                               TwoDimVector targetPosition) {
-        double b1 = targetPosition.getX();
-        double b2 = targetPosition.getY();
+    public TwoDimVector calculateAccelerationForFastestWayToPosition(TwoDimVector playerPosition,
+                                                                     TwoDimVector playerVelocity,
+                                                                     TwoDimVector targetPosition, boolean oldMethod) {
+        if(oldMethod){
+            return oldMethodDetermineBodyAccelerationDirectionForFastestWayToPosition(playerPosition, playerVelocity, targetPosition);
+        }
+        double t1 = targetPosition.getX();
+        double t2 = targetPosition.getY();
         double v1 = playerVelocity.getX();
         double v2 = playerVelocity.getY();
         double p1 = playerPosition.getX();
         double p2 = playerPosition.getY();
         double aMax = Player.BODY_ACC_MAX;
+        double vMax = Player.MAX_PLAYER_VELOCITY;
 
         double circleMidX = p1 + v1;
         double circleMidY = p2 + v2;
 
         TwoDimVector circleMid = new TwoDimVector(circleMidX, circleMidY);
-        if (circleMid.getDistanceTo(targetPosition) <= aMax) {
-            return targetPosition.getDifference(circleMid);
-        } else if (b1 == p1) {
-            double y = Math.sqrt(pow(aMax, 2) - pow(b1, 2));
-            return new TwoDimVector(b1, y);
+        TwoDimVector defaultAcceleration = targetPosition.getDifference(circleMid);
+        //wenn Ziel in einem Schritt erreichbar oder wenn man aMax schon genau in Richtung Ziel ausreizen kann
+        if (defaultAcceleration.getNorm() <= aMax || playerVelocity.plus(defaultAcceleration.getNormedVector().scaledWith(aMax)).getNorm() <= vMax) {
+            return defaultAcceleration;
+        }
+        TwoDimVector[] circleIntersections = getCircleIntersections(aMax, vMax, v1, v2);
+        if(circleIntersections.length != 2){
+            //sollte nicht passieren
+            return defaultAcceleration;
+        }
+        TwoDimVector s1 = playerPosition.plus(circleIntersections[0]);
+        TwoDimVector s2 = playerPosition.plus(circleIntersections[1]);
+        final TwoDimVector accelerationResult;
+        if(s1.getDistanceTo(targetPosition) < s2.getDistanceTo(targetPosition)){
+            accelerationResult = circleIntersections[0];
+        }
+        else{
+            accelerationResult = circleIntersections[1];
+        }
+        return accelerationResult;
+    }
+    public TwoDimVector[] getCircleIntersections(double aMax, double vMax, double v1, double v2) {
+        double k = (aMax * aMax + v1 * v1 + v2 * v2 - vMax * vMax) / 2.0;
+
+        if (v2 != 0) {
+            // Quadratische Gleichung: (v1^2 + v2^2)x^2 - 2*k*v1*x + (k^2 - aMax^2*v2^2) = 0
+            double l = v1 * v1 + v2 * v2;
+            double m = -2 * k * v1;
+            double n = k * k - aMax * aMax * v2 * v2;
+
+            double discriminant = m * m - 4 * l * n;
+            if (discriminant < 0) {
+                return new TwoDimVector[0]; // Keine Schnittpunkte
+            }
+
+            double sqrtD = Math.sqrt(discriminant);
+            double x1 = (-m + sqrtD) / (2 * l);
+            double x2 = (-m - sqrtD) / (2 * l);
+            double y1 = (k - v1 * x1) / v2;
+            double y2 = (k - v1 * x2) / v2;
+
+            return new TwoDimVector[]{ new TwoDimVector(x1, y1), new TwoDimVector(x2, y2) };
+
+        } else if (v1 != 0) {
+            // v2 = 0 → Gerade horizontal y = ?
+            double x = k / v1;
+            double ySquare = aMax * aMax - x * x;
+            if (ySquare < 0) return new TwoDimVector[0]; // Keine Schnittpunkte
+            double y1 = Math.sqrt(ySquare);
+            double y2 = -Math.sqrt(ySquare);
+            return new TwoDimVector[]{ new TwoDimVector(x, y1), new TwoDimVector(x, y2) };
         } else {
-            double c = (b2 - p2) / (b1 - p1);
-            double t = c * v1 - v2;
-            double facA = (pow(c, 2) + 1);
-            double facB = 2 * c * t;
-            double facC = pow(t, 2) - pow(aMax, 2);
-
-            double f = Math.sqrt(pow(facB, 2));
-            double g = 4 * facA * facC;
-
-            if (f < g) {
-                //nächsten Punkt auf der Geraden anpeilen
-                TwoDimVector e = new TwoDimVector(p1 + v1, p2 + v2);
-                if (p2 == b2) {
-                    TwoDimVector h = new TwoDimVector(p1, e.getX());
-                    return h.getDifference(e);
-                } //p1 != b1 wegen früherer Abfrage
-                else {
-                    double e1 = e.getX();
-                    double e2 = e.getY();
-                    double x = (-1 / c * e1 + e2 - c * p1 + p2) / (c - 1 / c);
-                    double y = c * (x + p1) + p2;
-                    TwoDimVector h = new TwoDimVector(x, y);
-                    return h.getDifference(e);
-                }
-            }
-
-            double u = Math.sqrt(pow(facB, 2) - 4 * facA * facC);
-
-            double x1 = (-facB + u) / (2 * facA);
-            double y1 = c * x1 + t;
-            double x2 = (-facB - u) / (2 * facA);
-            double y2 = c * x2 + t;
-
-            double e11 = x1 + p1 + v1; //wo man landet. p + v + a
-            double e12 = x2 + p1 + v1;
-
-            double e21 = y1 + p2 + v2;
-            double e22 = y2 + p2 + v2;
-
-            TwoDimVector vectorE1 = new TwoDimVector(e11, e21);
-            TwoDimVector vectorE2 = new TwoDimVector(e12, e22);
-
-
-            if (vectorE1.getDistanceTo(targetPosition) < vectorE2.getDistanceTo(targetPosition)) {
-                return new TwoDimVector(x1, y1);
-            } else {
-                return new TwoDimVector(x2, y2);
-            }
+            // v1 = v2 = 0 → Kreise um selben Punkt
+            if (aMax == vMax) return new TwoDimVector[]{ new TwoDimVector(aMax, 0), new TwoDimVector(-aMax, 0) };
+            return new TwoDimVector[0]; // Keine Schnittpunkte oder unendlich viele
         }
     }
 }

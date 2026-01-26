@@ -101,8 +101,7 @@ public class Game {
             } else {
                 redScore++;
             }
-        }
-        else{
+        } else {
             Collections.shuffle(players);
             TwoDimVector shotVelocitySum = new TwoDimVector(0, 0);
             Set<Player> playersWhoTouchTheBall = new HashSet<>();
@@ -131,13 +130,17 @@ public class Game {
             }
             ball.move();
         }
-        boolean hasNaNValues = movingFrameElements.stream().anyMatch(p->Double.isNaN(p.getVelocity().getX()));
-        if(hasNaNValues){
+        if(hasNaNValues()){
             //go back one step for debugging.
-            //todo wie es aussieht eine race condition
+            System.out.println("NaN fields found");
             frameCreator.pauseGame();
             var previousSituation = history.getLast();
             resetToSituation(previousSituation);
+            if(hasNaNValues()){
+                System.out.println("NaN fields found again after reset");
+            }else{
+                System.out.println("no NaN fields found after reset");
+            }
             for (var player : players) {
                 //die Liste, die der Spieler hier kriegt, enthält auch den Spieler selbst und über die id kann er wissen wer er ist
                 player.updateSituation(previousSituation);
@@ -156,18 +159,24 @@ public class Game {
 
     }
 
+    private boolean hasNaNValues() {
+        return movingFrameElements.stream().anyMatch(p -> !p.isBall() &&
+            Double.isNaN(((Player) p).getBodyAcceleration().getX() + p.getPosition().getX() + p.getVelocity().getX()));
+    }
+
     private void resetToSituation(Situation situation) {
         for (int i = 0; i < players.size(); i++) {
             var player = players.get(i);
-            Player substitute = situation.getPlayers().stream().filter(s -> s.getId() == player.getId()).findFirst().get();
+            Player substitute =
+                situation.getPlayers().stream().filter(s -> s.getId() == player.getId()).findFirst().get();
             player.setVelocity(substitute.getVelocity());
             player.setPosition(substitute.getPosition());
             player.setBodyAcceleration(substitute.getBodyAcceleration());
             player.setMinimalDurationBeforeNextShot(substitute.getMinimalDurationBeforeNextShot());
             player.setJerseyNumber(substitute.getJerseyNumber());
             player.setLetBallPass(substitute.isLetBallPass());
-            player.setNewSituation(substitute.isNewSituation());
             player.setNextSituation(substitute.getNextSituation());
+            player.setNewSituation(substitute.isNewSituation());
             player.setTeamRed(player.isTeamRed());
         }
         var substituteBall = situation.getBall();
