@@ -105,8 +105,8 @@ public class ScriptedStrategy implements Strategy {
         if (!dribble) {
             shotDirection = target.getDifference(perspectivePlayer.getPosition());
         }
-
-        return new StrategyOutput(bodyAccelerationDirection, bodyAccelerationStrength, false, shotDirection,
+        ShotMode shotMode = dribble ? ShotMode.SET_VELOCITY : ShotMode.ADD_VELOCITY;
+        return new StrategyOutput(bodyAccelerationDirection, bodyAccelerationStrength, shotMode, shotDirection,
             shotStrength);
     }
 
@@ -167,7 +167,7 @@ public class ScriptedStrategy implements Strategy {
         return new StrategyOutput(
             calculateAccelerationForFastestWayToPosition(perspectivePlayer.getPosition(),
                 perspectivePlayer.getVelocity(), positionToTarget, perspectivePlayer.isTeamRed()),
-            1, false, new TwoDimVector(0, 0), 0);
+            1, ShotMode.SET_VELOCITY, new TwoDimVector(0, 0), 0);
     }
 
     private StrategyOutput decideWithoutBallAttacking(Player perspectivePlayer, Ball ball, List<Player> opponents) {
@@ -185,7 +185,7 @@ public class ScriptedStrategy implements Strategy {
             ball.getPosition().getDifference(perspectivePlayer.getPosition()).scaledWith(factor)
                 .getNormedVector());
         //acc.add(opponentGoalPos.getDifference(perspectivePlayer.getPosition()).scaledWith(factor).getNormedVector());
-        return new StrategyOutput(acc, 1, true, new TwoDimVector(0, 0), 0);
+        return new StrategyOutput(acc, 1, ShotMode.LET_THROUGH, new TwoDimVector(0, 0), 0);
     }
 
     //Todo ist das wirklich richtig so? Wozu ist das decisionLog, wenn die Entscheidungen doch asynchron zum Spiel laufen? Warum müssen alle Threads überhaupt alles lesen, sie müssen doch nur die aktuelle Situation kennen

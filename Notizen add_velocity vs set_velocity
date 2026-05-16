@@ -1,0 +1,4 @@
+Bisher: Die Schussgeschwindigkeit von allen die den Ball in einem Zeitschritt schießen wollen und können soll berücksichtigt werden
+
+bei set_velocity kann man die Auswirkung (DIfferenz) die man auf den Ball hat bestimmen und die dann addieren
+wenn man ihn stoppt addiert man eine Geschwindigkeit in die andere Richtung und falls jemand in die Gegenrichtung schießt dann kann man den Ball trotzdem verlangsamen und der Schuss ist dann nicht so schnell

@@ -47,10 +47,10 @@ public class TwoDimVector {
     }
 
     /**
-     * Creates a new vector which has the coordinates of the vector - the coordinates of the subtrahend.
+     * Creates a new vector which has the coordinates of the vector minus the coordinates of the subtrahend.
      *
-     * @param subtrahend
-     * @return new TwoDimVector
+     * @param subtrahend the TwoDimVector to subtract
+     * @return new TwoDimVector which is the result after the subtrahend has been subtracted
      */
     public TwoDimVector getDifference(TwoDimVector subtrahend) {
         return new TwoDimVector(x - subtrahend.x, y - subtrahend.y);

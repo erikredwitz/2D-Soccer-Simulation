@@ -20,7 +20,7 @@ public class Player extends MovingFrameElement {
 
     private boolean teamRed;
     private TwoDimVector bodyAcceleration = new TwoDimVector(0, 0); //wird bestimmt von Strategie
-    private volatile boolean letBallPass = true;
+    private volatile ShotMode shotMode = ShotMode.LET_THROUGH;
     private volatile TwoDimVector shotVelocity = new TwoDimVector(0, 0);
     private Strategy strategy;
     private int minimalDurationBeforeNextShot = 0;
@@ -71,8 +71,8 @@ public class Player extends MovingFrameElement {
         return bodyAcceleration;
     }
 
-    public synchronized boolean doesLetBallPass() {
-        return letBallPass;
+    public synchronized ShotMode getShotMode() {
+        return shotMode;
     }
 
 
@@ -119,16 +119,16 @@ public class Player extends MovingFrameElement {
         var strategyOutput = strategy.decide(situation, copyOfThis);
         var newBodyAcceleration = Utility.normAndScale(strategyOutput.bodyAccelerationStrength(),
             strategyOutput.bodyAccelerationDirection(), BODY_ACC_MAX);
-        var newLetBallPass = strategyOutput.letBallPass();
+        var newShotMode = strategyOutput.shotMode();
         var newShotVelocity = shotVelocity;
-        if (!newLetBallPass) {
+        if (newShotMode == ShotMode.LET_THROUGH) {
             newShotVelocity = Utility.normAndScale(strategyOutput.shotStrength(), strategyOutput.shotDirection(),
                 MAX_SHOT_VELOCITY);
         }
         synchronized (this) {
             bodyAcceleration = newBodyAcceleration;
-            letBallPass = newLetBallPass;
-            if (!letBallPass) {
+            shotMode = newShotMode;
+            if (shotMode != ShotMode.LET_THROUGH) {
                 shotVelocity = newShotVelocity;
             }
         }
@@ -214,16 +214,8 @@ public class Player extends MovingFrameElement {
         this.shotVelocity = shotVelocity;
     }
 
-    public void setLetBallPass(boolean letBallPass) {
-        this.letBallPass = letBallPass;
-    }
-
     public void setTeamRed(boolean teamRed) {
         this.teamRed = teamRed;
-    }
-
-    public boolean isLetBallPass() {
-        return letBallPass;
     }
 
     public synchronized Situation getNextSituation() {

@@ -107,19 +107,27 @@ public class Game {
             Set<Player> playersWhoTouchTheBall = new HashSet<>();
             for (var player : players) {
                 //Spieler bekommen am Ende der Methode die neue Situation gesagt, damit dann die Zeit bis zum nächsten Simulationsschritt übrig ist
-                if (!player.doesLetBallPass() && canPlayerShoot(player, ball)) {
+                if (player.getShotMode() != ShotMode.LET_THROUGH && canPlayerShoot(player, ball)) {
                     playersWhoTouchTheBall.add(player);
                 }
             }
             if (!playersWhoTouchTheBall.isEmpty()) {
                 for (var player : playersWhoTouchTheBall) {
-                    shotVelocitySum.add(player.getShotVelocity());
+                    TwoDimVector velocityChange = null;
+                    if (player.getShotMode() == ShotMode.ADD_VELOCITY){
+                        velocityChange = player.getShotVelocity();
+                    }
+                    else {
+                        assert(player.getShotMode() == ShotMode.SET_VELOCITY);
+                        velocityChange = player.getVelocity().getDifference(ball.getVelocity());
+                    }
+                    shotVelocitySum.add(velocityChange);
                     player.setMinimalDurationBeforeNextShot(MINIMAL_DURATION_BEFORE_NEXT_SHOT);
                 }
                 ball.setVelocity(shotVelocitySum.getNormedVector()
                     .scaledWith(shotVelocitySum.getNorm() + ball.getVelocity().getNorm()));
                 ball.setVelocity(
-                    ball.getVelocity().rotated(Math.random() * SHOT_RANDOMNESS_MARGIN - 0.5 * SHOT_RANDOMNESS_MARGIN));
+                    ball.getVelocity().rotated((Math.random() - 0.5) * SHOT_RANDOMNESS_MARGIN));
             }
 
             for (var player : players) {
@@ -174,7 +182,6 @@ public class Game {
             player.setBodyAcceleration(substitute.getBodyAcceleration());
             player.setMinimalDurationBeforeNextShot(substitute.getMinimalDurationBeforeNextShot());
             player.setJerseyNumber(substitute.getJerseyNumber());
-            player.setLetBallPass(substitute.isLetBallPass());
             player.setNextSituation(substitute.getNextSituation());
             player.setNewSituation(substitute.isNewSituation());
             player.setTeamRed(player.isTeamRed());

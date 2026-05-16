@@ -7,7 +7,8 @@ import java.util.List;
 
 public class CoveredAngleInterval {
     public static final double MAX_INTERVAL_RADIUS_PARAMETER = 0.2;
-    public static final double SLOWNESS_OF_INTERVAL_RADIUS_GROWTH = 100.0;
+    public static final double SLOWNESS_OF_INTERVAL_RADIUS_GROWTH = 10000.0;
+    public static final double BASE_ANGLE_FACTOR = 0.05;
     private double startAngle;
     private double endAngle;//>startAngle
     private Player player;
@@ -84,6 +85,7 @@ public class CoveredAngleInterval {
     }
 
     private static double getIntervalRadius(double distance) {
-        return Math.min(Math.PI* MAX_INTERVAL_RADIUS_PARAMETER, distance * Math.PI/ SLOWNESS_OF_INTERVAL_RADIUS_GROWTH);//TOdo parameter ausprobieren
+        return Math.min(Math.PI* MAX_INTERVAL_RADIUS_PARAMETER, Math.PI * (
+            BASE_ANGLE_FACTOR + distance / SLOWNESS_OF_INTERVAL_RADIUS_GROWTH));//TOdo parameter ausprobieren
     }
 }

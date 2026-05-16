@@ -1,4 +1,4 @@
 package model;
 
-public record StrategyOutput(TwoDimVector bodyAccelerationDirection, double bodyAccelerationStrength, boolean letBallPass, TwoDimVector shotDirection, double shotStrength) {
+public record StrategyOutput(TwoDimVector bodyAccelerationDirection, double bodyAccelerationStrength, ShotMode shotMode, TwoDimVector shotDirection, double shotStrength) {
 }
