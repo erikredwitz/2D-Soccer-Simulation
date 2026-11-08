@@ -111,21 +111,21 @@ public class Game {
                     playersWhoTouchTheBall.add(player);
                 }
             }
+            //falls mehrere berühren, erstmal schauen was bei jedem einzelnen rauskommen würde als Ballgeschwindigkeit und dann den Durchschnitt davon nehmen
             if (!playersWhoTouchTheBall.isEmpty()) {
                 for (var player : playersWhoTouchTheBall) {
-                    TwoDimVector velocityChange = null;
+                    TwoDimVector playerInfluence = null;
                     if (player.getShotMode() == ShotMode.ADD_VELOCITY){
-                        velocityChange = player.getShotVelocity();
+                        playerInfluence = player.getShotVelocity().getNormedVector().scaledWith(player.getShotVelocity().getNorm() + ball.getVelocity().getNorm());
                     }
                     else {
                         assert(player.getShotMode() == ShotMode.SET_VELOCITY);
-                        velocityChange = player.getVelocity().getDifference(ball.getVelocity());
+                        playerInfluence = player.getShotVelocity();
                     }
-                    shotVelocitySum.add(velocityChange);
+                    shotVelocitySum.add(playerInfluence);
                     player.setMinimalDurationBeforeNextShot(MINIMAL_DURATION_BEFORE_NEXT_SHOT);
                 }
-                ball.setVelocity(shotVelocitySum.getNormedVector()
-                    .scaledWith(shotVelocitySum.getNorm() + ball.getVelocity().getNorm()));
+                ball.setVelocity(shotVelocitySum.scaledWith(1.0/playersWhoTouchTheBall.size()));
                 ball.setVelocity(
                     ball.getVelocity().rotated((Math.random() - 0.5) * SHOT_RANDOMNESS_MARGIN));
             }

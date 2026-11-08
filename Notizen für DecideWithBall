@@ -1,0 +1,13 @@
+Simulation machen bei decideWithBall
+erstmal simulieren bis man den Ball berühren kann
+ab da dann verschiedene Ziele durchgehen (Tor (schießen), Mitspieler (passen), Ballbesitzspieler selbst (dribbeln))
+pro Ziel mehrere Varianten durchgehen und prüfen ob sie funktionieren (Ziel wird erreicht) bis das Ziel erreicht ist oder alle Testvarianten getestet wurden
+falls keine Zeit mehr (Gegner zu nah) und noch kein Ziel gefunden wurde (auch kein Dribbling), nach vorne Schießen
+Reihenfolge der Ziele: Tor, Mitspieler (inklusive Perspektive) sortiert nach Torabstand (oder komplizierterem Bewertungskriterium was Position, Schussoptionen und Passoptionen einbeziehen könnte), nach vorne schießen (Klären)
+bei Mitspielern prüfen, ob es gefährlich wäre, ihnen zu passen und in dem Fall nicht dem Klären bevorzugen
+
+
+welche Varianten gibt es?
+Winkel und Stärke variieren
+
+//Todo das umsetzen

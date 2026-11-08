@@ -188,38 +188,6 @@ public class ScriptedStrategy implements Strategy {
         return new StrategyOutput(acc, 1, ShotMode.LET_THROUGH, new TwoDimVector(0, 0), 0);
     }
 
-    //Todo ist das wirklich richtig so? Wozu ist das decisionLog, wenn die Entscheidungen doch asynchron zum Spiel laufen? Warum müssen alle Threads überhaupt alles lesen, sie müssen doch nur die aktuelle Situation kennen
-    private int determineContactIdSynchronized(Situation situation, Player perspectivePlayer, List<Player> players,
-                                               Ball ball) {
-        int contactId;
-        synchronized (ScriptedStrategy.class) {
-            //Statische Werte für contactId mehrere Zeitschritte speichern
-            //weil Reihenfolge der Threads unterschiedlich sein kann
-            // wie bei Tetris Einträge wieder löschen, wenn Reihe voll sozusagen, also wenn alle Threads den gespeicherten Wert benutzt haben, also für den Zeitschritt entschieden haben.
-            if (decisionLog.isEmpty()) {
-                for (var x : situation.getPlayers()) {
-                    decisionLog.put(x.id, 0);
-                }
-            }
-            int timeStepAdvantage = decisionLog.get(perspectivePlayer.id);
-            //hier wird geschaut: „bin ich der erste im neuen Zeitschritt“
-            if (contactIdList.size() <= timeStepAdvantage) {
-                contactId = determineNextBallContactPlayer(players, ball);
-                contactIdList.add(contactId);
-            } else {
-                contactId = contactIdList.get(timeStepAdvantage);
-            }
-            decisionLog.put(perspectivePlayer.id, timeStepAdvantage + 1);
-            //Wenn Minimum aus decisionLog > 0 ist, dann haben alle Threads den ersten Wert von contactIdList gelesen und man kann ihn jetzt löschen
-            var minDecision = decisionLog.values().stream().min(Comparator.naturalOrder()).get();
-            if (minDecision > 0) {
-                contactIdList.removeFirst();
-                decisionLog.replaceAll((index, advantage) -> advantage - 1);
-            }
-        }
-        return contactId;
-    }
-
     private ShotDecision determineBestDribblingDecision(Player perspective, List<Player> players,
                                                         Ball ball, TwoDimVector opponentGoalPos) {
         //finde erstbeste Dribblingmöglichkeit durch Simulation:
@@ -255,8 +223,8 @@ public class ScriptedStrategy implements Strategy {
                 }
             }
             var direction = goalDirectionFromBall.rotated(2* offsetDirection * PI / (steps-1));
-            double dribblingStrength = 0.05;
-            while(dribblingStrength > 0.01){
+            double dribblingStrength = 1.1*Player.MAX_PLAYER_VELOCITY;
+            while(dribblingStrength > 0.05*Player.MAX_PLAYER_VELOCITY){
                 Ball simulationBall = ball.createCopy();
                 List<Player> simuPlayers = createSimuPlayers(players);
                 var nextBallContactPlayerId = determineNextBallContactPlayer(simuPlayers, simulationBall);
@@ -265,7 +233,7 @@ public class ScriptedStrategy implements Strategy {
                 if (nextBallContactPlayer.isTeamRed() == perspective.isTeamRed()) {
                     return new ShotDecision(direction, dribblingStrength);
                 }
-            dribblingStrength -= 0.01;
+            dribblingStrength -= 0.05;
             }
 
         }
